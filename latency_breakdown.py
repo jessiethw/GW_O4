@@ -5,7 +5,8 @@
 '''  
 
 import numpy as np
-import matplotlib
+import matplotlib as mpl
+mpl.use('agg')
 import lxml.etree
 import matplotlib.pyplot as plt
 from astropy.time import Time

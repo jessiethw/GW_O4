@@ -6,8 +6,9 @@
 '''
 
 import numpy as np
-import matplotlib.pyplot as plt
 import matplotlib as mpl
+mpl.use('agg')
+import matplotlib.pyplot as plt
 import glob
 import pickle
 
