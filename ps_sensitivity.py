@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-This script runs trials to calculate Sensitivity flux for a GW event.
+This script runs trials to calculate point source sensitivity flux.
 This script will inject one value of inject flux and record passing
 fraction. Meant to be run in parallel with more jobs at different values
 of injected flux.
@@ -10,16 +10,14 @@ Updated July 2022
 """
 
 import numpy  as np
-import healpy as hp
-import matplotlib
-matplotlib.use('agg')
-import matplotlib.pyplot as plt
 import argparse
 
 from skylab.priors        import SpatialPrior
 from skylab.ps_injector   import PriorInjector, PointSourceInjector
 
-
+import sys
+if '/data/user/jthwaites/gw_o4' not in sys.path:
+    sys.path.append('/data/user/jthwaites/gw_o4')
 from config_GW            import config
 from scipy.optimize       import curve_fit
 from scipy.stats          import chi2
@@ -45,11 +43,13 @@ p.add_argument("--dec", default=0., type=float,
                 help="Declination of point source to test (Default=0.0)")
 p.add_argument("--ra", default=0., type=float,
                 help="RA of point source to test (Default=0.0)")
+p.add_argument("--output", default='./',type=str,
+                help="path to save output")
 args = p.parse_args()
 ###################################################################
 
 ############## CONFIGURE LLH AND INJECTOR ################
-seasons = ['GFU','IC86, 2011-2018']
+seasons = ['GFUOnline_v001p03','IC86, 2011-2018']
 erange  = [0,10]
 index = 2.
 GW_time = 57982.52852350
@@ -82,20 +82,20 @@ start = stop-ntrials
 ### flux to be injected
 ns = ns_min + delta*args.pid
 flux = inj.mu2flux(ns)
-fluxList = []
-fluxList.append(flux)
+fluxList = [flux]
 
 ndisc = 0
 TS_list=[]
 ns_list=[]
+
 for j in range(start,stop):
 
     ni, sample = inj.sample(src_ra,ns,poisson=True)
     val = llh.scan(src_ra,src_dec,scramble=True,seed=j,inject=sample,
                    time_mask=[time_window,GW_time])
-
+    
     TS_list.append(val['TS'])
-    ns_list.append(val['ns'])
+    ns_list.append(val['nsignal'])
 
     if val['TS']>0.0:
         ndisc+=1
@@ -109,14 +109,11 @@ if P==1.:
 
 results={
     'passFrac':[P],
-    'fluxList':[fluxList],
+    'fluxList':fluxList,
     'TS_List':TS_list,
     'ns_fit':ns_list,
     'ns_inj':ns
 }
-#Pass = np.asarray(P,dtype=float)
-#fluxList = np.asarray(fluxList,dtype=float)
 
-pickle.dump('/data/user/jthwaites/gw_o4/sens_trials/ps_sens_trials_%s.pkl'%(args.pid), results)
-#np.save('/home/rhussain/icecube/dump/gw170817/passingFrac/sens/point_pass_%s.npy' % (args.pid),Pass)
-#np.save('/home/rhussain/icecube/dump/gw170817/passingFrac/sens/point_fluxList_%s.npy' % (args.pid),fluxList)
+with open(args.output+'/ps_sens_%s_trials_%s.pkl'%(str(args.dec), args.pid), 'wb') as f:
+    pickle.dump(results, f)

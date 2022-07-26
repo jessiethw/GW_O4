@@ -1,1 +1,5 @@
 latency_O3.py
+sens_trials/
+sens_trials/*
+__pycache__/
+__pycache__/*

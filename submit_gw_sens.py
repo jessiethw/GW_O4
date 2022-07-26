@@ -9,7 +9,7 @@ parser = argparse.ArgumentParser(
     description='Submit script')
 parser.add_argument(
     '--output', type=str,
-    default='/data/user/jthwaites/gw_o4/',
+    default='/data/user/jthwaites/gw_o4/sens_trials/',
     help="Where to store output"
 )
 
@@ -45,11 +45,14 @@ job = pycondor.Job(
     )
 
 
-gw_list = [150914,151012,151226,170104,170608,170809,170814,170818,170823]
+#gw_list = [150914,151012,151226,170104,170608,170809,170814,170818,170823]
 
-#fix arguments!!!!
-for i in range(200):
-    job.add_arg('--ntrials %s --gw %s --pid %s' % (args.ntrials,args.gw,i))
+#scan over decs
+decs=[-67.5,-45.,-22.5, 0., 22.5, 45., 67.5]
+for dec in decs:
+    for i in range(200):
+        job.add_arg('--dec %s --pid %s --output %s' % (dec, i, args.output))
+    #job.add_arg('--dec %s --output %s' % (dec, args.output))
 
 dagman = pycondor.Dagman(
     'gw_dagman_sens',
