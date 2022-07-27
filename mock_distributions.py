@@ -30,12 +30,11 @@ def make_bg_pval_dist(fontsize=15):
             all_mocks[result['name']]=result['p']
     print('Done loading mocks.')
 
+    mpl.rcParams.update({'font.size':fontsize})
     fig, ax = plt.subplots(figsize =(10, 7))
     ax.tick_params(labelsize=fontsize)
-    mpl.rcParams.update({'font.size':fontsize})
 
     p_x_vals = np.logspace(-2.5,0.,16)
-    plt.figure(figsize = (10,6), dpi=300)
     n, bins, patches = plt.hist([all_mocks[name] for name in all_mocks.keys()], 
                                 weights = np.ones(len(all_mocks)) / len(all_mocks), bins = p_x_vals)
     

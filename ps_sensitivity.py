@@ -31,8 +31,10 @@ p = argparse.ArgumentParser(description="Calculates Sensitivity and Discovery"
 
 p.add_argument("--nsMin", default=0.0, type=float,
                 help="Minimum flux to inject (default=0.0)")
-p.add_argument("--nsMax", default=2e-15, type=float,
-                help="Maximum flux to inject (default=2e-15)")
+#p.add_argument("--nsMax", default=2e-15, type=float,
+#                help="Maximum flux to inject (default=2e-15)")
+p.add_argument("--nsMax", default=10, type=float,
+                help="Maximum signal events to inject (default=10)")
 p.add_argument("--pid", default=0, type=int,
                 help="Process ID number for jobs running on cluster (Default=0)")
 p.add_argument("--ntrials", default=1000, type=int,

@@ -3,3 +3,5 @@ sens_trials/
 sens_trials/*
 __pycache__/
 __pycache__/*
+plots/
+plots/*
