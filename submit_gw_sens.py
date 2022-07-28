@@ -4,14 +4,20 @@ import pandas as pd
 import argparse
 import pwd
 import os
+import lxml.etree
+from astropy.time import Time
+import wget
 
 parser = argparse.ArgumentParser(
     description='Submit script')
 parser.add_argument(
     '--output', type=str,
     default='/data/user/jthwaites/gw_o4/sens_trials/',
-    help="Where to store output"
-)
+    help="Where to store output")
+parser.add_argument(
+    '--skymap_path', type=str,
+    default=None,
+    help='skymap path, if using the prior')
 
 args = parser.parse_args()
 username = pwd.getpwuid(os.getuid())[0]
@@ -29,8 +35,9 @@ submit = f'/scratch/{username}/gw/condor/submit'
 
 ### Create Dagman to submit jobs to cluster    
 job = pycondor.Job(
-    'sensitivity_gw',
-    './ps_sensitivity.py',
+    'gw sensitivity (with prior)',
+    #'./ps_sensitivity.py',
+    './spatialprior_sensitivity.py',
     error=error,
     output=output,
     log=log,
@@ -44,15 +51,27 @@ job = pycondor.Job(
         'when_to_transfer_output = ON_EXIT']
     )
 
-
-#gw_list = [150914,151012,151226,170104,170608,170809,170814,170818,170823]
-
-#scan over decs
+#scan over decs (for point source)
+"""
 decs=[-67.5,-45.,-22.5, 0., 22.5, 45., 67.5]
 for dec in decs:
     for i in range(200):
         job.add_arg('--dec %s --pid %s --output %s' % (dec, i, args.output))
-    #job.add_arg('--dec %s --output %s' % (dec, args.output))
+"""
+with open(args.skymap_path, 'rb').read() as payload:
+    root = lxml.etree.fromstring(payload) 
+    eventtime = root.find('.//ISOTime').text
+    event_mjd = Time(eventtime, format='isot').mjd
+
+    params = {elem.attrib['name']:
+              elem.attrib['value']
+              for elem in root.iterfind('.//Param')}
+    skymap = params['skymap_fits']
+    skymap_path=wget.download(skymap)
+
+# for spatial prior map for S191216ap
+for i in range(200):
+    job.add_arg('--skymap %s --time %s --pid %s --output %s'%(skymap_path,event_mjd,i, args.output))
 
 dagman = pycondor.Dagman(
     'gw_dagman_sens',
