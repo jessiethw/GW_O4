@@ -26,8 +26,10 @@ fontsize=15
 def chi2Fit(x, A):
     return chi2.cdf(x, A)
 
-sensitivities=[]
+sensitivity_flux=[]
+sensitivity_ns=[]
 decs=[-67.5, -45., -22.5, 0., 22.5, 45., 67.5]
+
 for dec in decs:
     sens_trials=[f'./sens_trials/ps_sens_{str(dec)}_trials_{str(pid)}.pkl' for pid in range(0,200)]
 
@@ -54,9 +56,11 @@ for dec in decs:
               time_mask=[500./3600./24.,57982.52852350], poisson=True)
 
     inj = PointSourceInjector(E0=1000.)
-    inj.fill(dec,llh.exp,llh.mc,llh.livetime,
+    inj.fill(np.deg2rad(dec),llh.exp,llh.mc,llh.livetime,
          temporal_model=llh.temporal_model)
-    sensitivities.append(inj.mu2flux(sensitivity))
+    sensitivity_ns.append(sensitivity)
+    #flux at E0=1 TeV, convert to [GeV cm^-2 s]
+    sensitivity_flux.append(inj.mu2flux(sensitivity)*1e9)
 
     #### Making passing fract curve #####
     mpl.rcParams.update({'font.size':fontsize})
@@ -90,9 +94,15 @@ for dec in decs:
     plt.savefig(f'./plots/bias_dec{str(dec)}.png')
 
 plt.clf()
-plt.plot(decs, sensitivities)
+plt.plot(decs, sensitivity_flux)
 plt.xlabel('declination')
-plt.ylabel('sensitivity flux (E2 dN/dE)')
+plt.ylabel(r'Sensitivity flux $E^2$ dN/dE at 1 TeV [GeV cm$^-2$]')
 plt.title('Point source sensitivity flux (gamma=2.0)')
-
+plt.yscale('log')
+plt.xlim([-90,90])
 plt.savefig(f'./plots/sensitivity_flux_v_dec.png')
+
+with open('./calculated_sensitivities.pickle','wb') as f:
+    pickle.dump({'dec': decs,
+                 'sens_ns':sensitivity_ns,
+                 'sens_flux':sensitivity_flux}, f)
