@@ -84,9 +84,9 @@ for dec in decs:
     plt.plot(ns_inj,ns_fit_mean)
     plt.plot(ns_inj,ns_inj,'--', color='C0')
     plt.fill_between(ns_inj, 
-                     [ns_fit_mean[i]-ns_fit_1sigma[i] for i in range(len(ns_fit_mean))], 
-                     [ns_fit_mean[i]+ns_fit_1sigma[i] for i in range(len(ns_fit_mean))], 
-                     alpha=0.2)
+                    [ns_fit_mean[i]-ns_fit_1sigma[i] for i in range(len(ns_fit_mean))], 
+                    [ns_fit_mean[i]+ns_fit_1sigma[i] for i in range(len(ns_fit_mean))], 
+                    alpha=0.2)
 
     plt.xlabel('n_inj')
     plt.ylabel('n_fit')

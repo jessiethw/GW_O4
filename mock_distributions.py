@@ -41,8 +41,8 @@ def make_bg_pval_dist(fontsize=15):
     lt_10per = sum(n[bins[:-1]<=0.1])
     lt_1per=sum(n[bins[:-1]<=0.01])
     
-    plt.plot([0.1,0.1], [1e-2, 1e0],linestyle='dotted', label='%.1f %% of p-values < 0.1'%(lt_10per))
-    plt.plot([0.01, 0.01], [1e-2, 1e0], linestyle='dashed',label='%.1f %% of p-values < 0.01'%(lt_1per))
+    plt.plot([0.1,0.1], [1e-3, 1e0],linestyle='dotted', label='%.1f %% of p-values < 0.1'%(lt_10per*100.))
+    plt.plot([0.01, 0.01], [1e-3, 1e0], linestyle='dashed',label='%.1f %% of p-values < 0.01'%(lt_1per*100.))
 
     plt.step(p_x_vals[1:], np.diff(p_x_vals), label = 'Uniform p-value expectation', lw = 3.)
     plt.xscale('log')
@@ -50,7 +50,7 @@ def make_bg_pval_dist(fontsize=15):
     plt.gca().invert_xaxis()
     plt.grid(which = 'both', alpha = 0.2)
     plt.xlim(1.1e0,1e-3)
-    plt.ylim(1e-2, 1e0)
+    plt.ylim(10**-2.5, 1e0)
     plt.xlabel('p-value', fontsize = fontsize)
     plt.ylabel('Fraction of Analyses', fontsize = fontsize)
     plt.legend(loc = 1, fontsize = fontsize)
