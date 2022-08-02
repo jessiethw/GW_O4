@@ -17,9 +17,9 @@ parser.add_argument(
 parser.add_argument(
     '--skymap_path', type=str,
     default=None,
-    help='skymap path, if using the prior')
-
+    help='skymap path, if using a prior')
 args = parser.parse_args()
+
 username = pwd.getpwuid(os.getuid())[0]
 if not os.path.exists(f'/scratch/{username}/'):
     os.mkdir(f'/scratch/{username}/')
@@ -37,7 +37,7 @@ submit = f'/scratch/{username}/gw/condor/submit'
 job = pycondor.Job(
     'gw sensitivity (with prior)',
     #'./ps_sensitivity.py',
-    './spatialprior_sensitivity.py',
+    './prior_sensitivity.py',
     error=error,
     output=output,
     log=log,
@@ -58,20 +58,26 @@ for dec in decs:
     for i in range(200):
         job.add_arg('--dec %s --pid %s --output %s' % (dec, i, args.output))
 """
-with open(args.skymap_path, 'rb').read() as payload:
-    root = lxml.etree.fromstring(payload) 
-    eventtime = root.find('.//ISOTime').text
-    event_mjd = Time(eventtime, format='isot').mjd
 
-    params = {elem.attrib['name']:
-              elem.attrib['value']
-              for elem in root.iterfind('.//Param')}
-    skymap = params['skymap_fits']
-    skymap_path=wget.download(skymap)
+# for spatial prior map
+payload=open(args.skymap_path, 'rb').read()
+root = lxml.etree.fromstring(payload) 
+eventtime = root.find('.//ISOTime').text
+event_mjd = Time(eventtime, format='isot').mjd
 
-# for spatial prior map for S191216ap
+params = {elem.attrib['name']:
+          elem.attrib['value']
+          for elem in root.iterfind('.//Param')}
+skymap = params['skymap_fits']
+skymap_path=wget.download(skymap)
+
+name = root.attrib['ivorn'].split('#')[1]
+name = name.split('-')[0]
+
+os.mkdir(args.output+name)
+
 for i in range(200):
-    job.add_arg('--skymap %s --time %s --pid %s --output %s'%(skymap_path,event_mjd,i, args.output))
+    job.add_arg('--skymap %s --time %s --pid %s --output %s --name %s'%(skymap_path,event_mjd,i, args.output, name))
 
 dagman = pycondor.Dagman(
     'gw_dagman_sens',
