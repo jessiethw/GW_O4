@@ -98,7 +98,7 @@ def config(seasons, seed = 1, scramble = True, e_range=(0,np.inf), g_range=[1.,4
   # INJECTOR #
   ############
   
-  inj = PriorInjector(spatial_prior, gamma=gamma, E0=1*TeV, seed=seed,e_range=(e_range[0],e_range[1]))
+  inj = PriorInjector(spatial_prior, gamma=gamma, seed=seed,e_range=(e_range[0],e_range[1]))
   inj.fill(llh.exp, llh.mc, llh.livetime, temporal_model=llh.temporal_model) 
   
   ############
