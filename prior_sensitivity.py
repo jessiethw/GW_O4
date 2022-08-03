@@ -39,7 +39,7 @@ p.add_argument("--ntrials", default=1000, type=int,
                 help="Number of trials to run per injected flux (Default=1000)")
 p.add_argument("--nstep", default=16, type=int,
                 help="Step size to increment injected flux (Default=16)")
-p.add_argument("--skymap", required=True, type=float,
+p.add_argument("--skymap", required=True, type=str,
                 help="path/url for skymap to use (required)")
 p.add_argument("--time", default=57982.52852350, type=float,
                 help="Time of GW merger event (Default=time of GW170817)")

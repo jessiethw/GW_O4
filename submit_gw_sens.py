@@ -35,7 +35,7 @@ submit = f'/scratch/{username}/gw/condor/submit'
 
 ### Create Dagman to submit jobs to cluster    
 job = pycondor.Job(
-    'gw sensitivity (with prior)',
+    'gw_sensitivity_using_prior',
     #'./ps_sensitivity.py',
     './prior_sensitivity.py',
     error=error,
@@ -69,12 +69,13 @@ params = {elem.attrib['name']:
           elem.attrib['value']
           for elem in root.iterfind('.//Param')}
 skymap = params['skymap_fits']
-skymap_path=wget.download(skymap)
 
 name = root.attrib['ivorn'].split('#')[1]
 name = name.split('-')[0]
 
-os.mkdir(args.output+name)
+if not os.path.exists(args.output+name):
+    os.mkdir(args.output+name)
+skymap_path=wget.download(skymap, f'{args.output}{name}/{name}.fits.gz')
 
 for i in range(200):
     job.add_arg('--skymap %s --time %s --pid %s --output %s --name %s'%(skymap_path,event_mjd,i, args.output, name))
