@@ -75,10 +75,13 @@ name = name.split('-')[0]
 
 if not os.path.exists(args.output+name):
     os.mkdir(args.output+name)
-skymap_path=wget.download(skymap, f'{args.output}{name}/{name}.fits.gz')
+skymap_path=wget.download(skymap, out=f'{args.output}{name}/{name}.fits.gz')
 
 for i in range(200):
-    job.add_arg('--skymap %s --time %s --pid %s --output %s --name %s'%(skymap_path,event_mjd,i, args.output, name))
+    #job.add_arg('--skymap %s --time %s --pid %s --output %s --name %s'
+    #            %(f'{args.output}{name}/{name}.fits.gz',event_mjd,i, args.output, name))
+    job.add_arg('--skymap %s --pid %s --output %s --name %s'
+                %(f'{args.output}{name}/{name}.fits.gz',i, args.output, name))
 
 dagman = pycondor.Dagman(
     'gw_dagman_sens',

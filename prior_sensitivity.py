@@ -11,6 +11,7 @@ August 2022
 
 import numpy  as np
 import argparse
+import healpy as hp
 
 from skylab.priors        import SpatialPrior
 from skylab.ps_injector   import PriorInjector, PointSourceInjector
@@ -55,8 +56,9 @@ seasons = ['GFUOnline_v001p03','IC86, 2011-2018']
 erange  = [0,10]
 index = 2.
 GW_time = args.time
+skymap = hp.read_map(args.skymap, verbose=False)
 
-spatial_prior = SpatialPrior(args.skymap, allow_neg=False)
+spatial_prior = SpatialPrior(skymap, allow_neg=False)
 
 time_window = 500./3600./24. #500 seconds in days
 
@@ -89,18 +91,23 @@ TS_list=[]
 ns_list=[]
 
 for j in range(start,stop):
-
-    ni, sample = inj.sample(spatial_prior,ns,poisson=True)
-
-    val = llh.scan(0.0, 0.0, scramble = True, seed=j, 
-            spatial_prior=spatial_prior,inject=sample,
-            time_mask = [time_window,GW_time])
+    for results, hotspots in llh.do_allsky_trials(n_iter=1,
+        rng_seed=j, injector=inj, mean_signal=ns, return_position=True, 
+        spatial_prior=spatial_prior, scramble=True):
+        if hotspots['spatial_prior_0']['best']['TS'] > 0.0:
+            ndisc += 1
     
-    TS_list.append(val['TS'])
-    ns_list.append(val['nsignal'])
+    #ni, sample = inj.sample(spatial_prior,ns)
 
-    if val['TS']>0.0:
-        ndisc+=1
+    #val = llh.scan(0.0, 0.0, scramble = True, seed=j, 
+    #        spatial_prior=spatial_prior,inject=sample,
+    #        time_mask = [time_window,GW_time])
+    print(results, hotspots['spatial_prior_0']['best'])
+    TS_list.append(hotspots['spatial_prior_0']['best']['TS'])
+    ns_list.append(hotspots['spatial_prior_0']['best']['nsignal'])
+
+    #if val['TS']>0.0:
+    #    ndisc+=1
 
 
 P = float(ndisc)/ntrials
