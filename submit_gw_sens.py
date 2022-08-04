@@ -33,11 +33,17 @@ output = f'/scratch/{username}/gw/condor/output'
 log = f'/scratch/{username}/gw/condor/log'
 submit = f'/scratch/{username}/gw/condor/submit'
 
+if args.skymap is None:
+    print('Running trials for point sources')
+    code_file='/data/user/jthwaites/gw_o4/ps_sensitivity.py'
+else: 
+    print('Running trials for given skymap')
+    code_file='/data/user/jthwaites/gw_o4/prior_sensitivity.py'
+
 ### Create Dagman to submit jobs to cluster    
 job = pycondor.Job(
-    'gw_sensitivity_using_prior',
-    #'./ps_sensitivity.py',
-    './prior_sensitivity.py',
+    'gw_sensitivity_jobs',
+    code_file,
     error=error,
     output=output,
     log=log,
@@ -52,35 +58,35 @@ job = pycondor.Job(
     )
 
 #scan over decs (for point source)
-"""
-decs=[-67.5,-45.,-22.5, 0., 22.5, 45., 67.5]
-for dec in decs:
-    for i in range(200):
-        job.add_arg('--dec %s --pid %s --output %s' % (dec, i, args.output))
-"""
+if args.skymap is None:
+    decs= np.linspace(-85,85,35)
+    for dec in decs:
+        for i in range(200):
+            job.add_arg('--dec %s --pid %s --output %s' % (dec, i, args.output+'point_source/'))
 
 # for spatial prior map
-payload=open(args.skymap_path, 'rb').read()
-root = lxml.etree.fromstring(payload) 
-eventtime = root.find('.//ISOTime').text
-event_mjd = Time(eventtime, format='isot').mjd
+else: 
+    payload=open(args.skymap_path, 'rb').read()
+    root = lxml.etree.fromstring(payload) 
+    eventtime = root.find('.//ISOTime').text
+    event_mjd = Time(eventtime, format='isot').mjd
 
-params = {elem.attrib['name']:
-          elem.attrib['value']
-          for elem in root.iterfind('.//Param')}
-skymap = params['skymap_fits']
+    params = {elem.attrib['name']:
+              elem.attrib['value']
+              for elem in root.iterfind('.//Param')}
+    skymap = params['skymap_fits']
 
-name = root.attrib['ivorn'].split('#')[1]
-name = name.split('-')[0]
+    name = root.attrib['ivorn'].split('#')[1]
+    name = name.split('-')[0]
 
-if not os.path.exists(args.output+name):
-    os.mkdir(args.output+name)
-skymap_path=wget.download(skymap, out=f'{args.output}{name}/{name}.fits.gz')
+    if not os.path.exists(args.output+name):
+        os.mkdir(args.output+name)
+    skymap_path=wget.download(skymap, out=f'{args.output}{name}/{name}.fits.gz')
 
-for i in range(200):
-    #job.add_arg('--skymap %s --time %s --pid %s --output %s --name %s'
-    #            %(f'{args.output}{name}/{name}.fits.gz',event_mjd,i, args.output, name))
-    job.add_arg('--skymap %s --pid %s --output %s --name %s'
+    for i in range(200):
+        #job.add_arg('--skymap %s --time %s --pid %s --output %s --name %s'
+        #            %(f'{args.output}{name}/{name}.fits.gz',event_mjd,i, args.output, name))
+        job.add_arg('--skymap %s --pid %s --output %s --name %s'
                 %(f'{args.output}{name}/{name}.fits.gz',i, args.output, name))
 
 dagman = pycondor.Dagman(

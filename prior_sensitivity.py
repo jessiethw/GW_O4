@@ -96,12 +96,14 @@ for j in range(start,stop):
     ni, sample = inj.sample(ns,poisson=True)
     val = llh.scan(0.0,0.0, scramble = True, seed = j,spatial_prior=spatial_prior,
                    inject = sample,time_mask=[time_window,GW_time], pixel_scan=[nside,3.])
- 
-    if val['TS_spatial_prior_0'].max() > 0.0:
-        ndisc+=1
-
-    TS_list.append(val['TS_spatial_prior_0'].max())
     ns_list.append(ni)
+    try:
+        if val['TS_spatial_prior_0'].max() > 0.:
+            ndisc+=1
+        TS_list.append(val['TS_spatial_prior_0'].max())
+    except ValueError:
+        TS_list.append(0.)
+        continue
 
 print(ns_list)
 print('done with trials')
