@@ -56,16 +56,18 @@ seasons = ['GFUOnline_v001p03','IC86, 2011-2018']
 erange  = [0,10]
 index = 2.
 GW_time = args.time
-skymap = hp.read_map(args.skymap, verbose=False)
+skymap, skymap_header = hp.read_map(args.skymap, h=True, verbose=False)
+nside=hp.pixelfunc.get_nside(skymap)
 
 spatial_prior = SpatialPrior(skymap, allow_neg=False)
 
 time_window = 500./3600./24. #500 seconds in days
 
+print('going into config')
 llh, inj = config(seasons,gamma=index,ncpu=2,seed=args.pid+1, days=5,
             spatial_prior=spatial_prior,
             time_mask=[time_window,GW_time], poisson=True)
-
+print('done with config llh/inj')
 ###########################################################
 
 ######### CALCULATE DISCOVERY POTENTIAL ###############
@@ -89,27 +91,20 @@ fluxList = [flux]
 ndisc = 0
 TS_list=[]
 ns_list=[]
-
+print('starting trials')
 for j in range(start,stop):
-    for results, hotspots in llh.do_allsky_trials(n_iter=1,
-        rng_seed=j, injector=inj, mean_signal=ns, return_position=True, 
-        spatial_prior=spatial_prior, scramble=True):
-        if hotspots['spatial_prior_0']['best']['TS'] > 0.0:
-            ndisc += 1
-    
-    #ni, sample = inj.sample(spatial_prior,ns)
+    ni, sample = inj.sample(ns,poisson=True)
+    val = llh.scan(0.0,0.0, scramble = True, seed = j,spatial_prior=spatial_prior,
+                   inject = sample,time_mask=[time_window,GW_time], pixel_scan=[nside,3.])
+ 
+    if val['TS_spatial_prior_0'].max() > 0.0:
+        ndisc+=1
 
-    #val = llh.scan(0.0, 0.0, scramble = True, seed=j, 
-    #        spatial_prior=spatial_prior,inject=sample,
-    #        time_mask = [time_window,GW_time])
-    print(results, hotspots['spatial_prior_0']['best'])
-    TS_list.append(hotspots['spatial_prior_0']['best']['TS'])
-    ns_list.append(hotspots['spatial_prior_0']['best']['nsignal'])
+    TS_list.append(val['TS_spatial_prior_0'].max())
+    ns_list.append(ni)
 
-    #if val['TS']>0.0:
-    #    ndisc+=1
-
-
+print(ns_list)
+print('done with trials')
 P = float(ndisc)/ntrials
 if P==0.:
     P=0.0001
@@ -123,7 +118,7 @@ results={
     'ns_fit':ns_list,
     'ns_inj':ns
 }
-
+print('saving everything')
 if args.name is not None:
     with open(args.output+'/%s_prior_sens_trials_%s.pkl'%(args.name, args.pid), 'wb') as f:
         pickle.dump(results, f)
