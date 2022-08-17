@@ -7,6 +7,7 @@ import os
 import lxml.etree
 from astropy.time import Time
 import wget
+import glob
 
 parser = argparse.ArgumentParser(
     description='Submit script')
@@ -63,7 +64,10 @@ job = pycondor.Job(
 if args.skymap is None:
     decs= np.linspace(-85,85,35)
     for dec in decs:
+        sens_trials=glob.glob(f'./sens_trials/point_source/ps_sens_{str(dec)}_trials_*.pkl')
         for i in range(200):
+            if f'./sens_trials/point_source/ps_sens_{str(dec)}_trials_{i}.pkl' in sens_trials:
+                continue
             job.add_arg('--dec %s --pid %s --output %s' % (dec, i, args.output+'point_source/'))
 
 # for spatial prior map
