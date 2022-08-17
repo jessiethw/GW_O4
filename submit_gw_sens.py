@@ -15,9 +15,9 @@ parser.add_argument(
     default='/data/user/jthwaites/gw_o4/sens_trials/',
     help="Where to store output")
 parser.add_argument(
-    '--skymap_path', type=str,
+    '--skymap', type=str,
     default=None,
-    help='skymap path, if using a prior')
+    help='skymap path to xml file, if using a prior')
 args = parser.parse_args()
 
 username = pwd.getpwuid(os.getuid())[0]
@@ -36,13 +36,15 @@ submit = f'/scratch/{username}/gw/condor/submit'
 if args.skymap is None:
     print('Running trials for point sources')
     code_file='/data/user/jthwaites/gw_o4/ps_sensitivity.py'
+    mem=6000
 else: 
     print('Running trials for given skymap')
     code_file='/data/user/jthwaites/gw_o4/prior_sensitivity.py'
+    mem=10000
 
 ### Create Dagman to submit jobs to cluster    
 job = pycondor.Job(
-    'gw_sensitivity_jobs',
+    'gw_sensitivity_jobs_prior',
     code_file,
     error=error,
     output=output,
@@ -51,7 +53,7 @@ job = pycondor.Job(
     getenv=True,
     universe='vanilla',
     verbose=2,
-    request_memory=6000,
+    request_memory=mem,
     extra_lines=[
         'should_transfer_files = YES',
         'when_to_transfer_output = ON_EXIT']
@@ -66,7 +68,7 @@ if args.skymap is None:
 
 # for spatial prior map
 else: 
-    payload=open(args.skymap_path, 'rb').read()
+    payload=open(args.skymap, 'rb').read()
     root = lxml.etree.fromstring(payload) 
     eventtime = root.find('.//ISOTime').text
     event_mjd = Time(eventtime, format='isot').mjd
@@ -83,14 +85,14 @@ else:
         os.mkdir(args.output+name)
     skymap_path=wget.download(skymap, out=f'{args.output}{name}/{name}.fits.gz')
 
-    for i in range(200):
+    for i in range(5):
         #job.add_arg('--skymap %s --time %s --pid %s --output %s --name %s'
         #            %(f'{args.output}{name}/{name}.fits.gz',event_mjd,i, args.output, name))
         job.add_arg('--skymap %s --pid %s --output %s --name %s'
                 %(f'{args.output}{name}/{name}.fits.gz',i, args.output, name))
 
 dagman = pycondor.Dagman(
-    'gw_dagman_sens',
+    'gw_dagman_sens_prior',
     submit=submit, verbose=2)
     
 dagman.add_job(job)
