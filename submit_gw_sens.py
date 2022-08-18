@@ -89,11 +89,9 @@ else:
         os.mkdir(args.output+name)
     skymap_path=wget.download(skymap, out=f'{args.output}{name}/{name}.fits.gz')
 
-    for i in range(5):
-        #job.add_arg('--skymap %s --time %s --pid %s --output %s --name %s'
-        #            %(f'{args.output}{name}/{name}.fits.gz',event_mjd,i, args.output, name))
+    for i in range(50):
         job.add_arg('--skymap %s --pid %s --output %s --name %s'
-                %(f'{args.output}{name}/{name}.fits.gz',i, args.output, name))
+                %(f'{args.output}{name}/{name}.fits.gz',i, f'{args.output}{name}/', name))
 
 dagman = pycondor.Dagman(
     'gw_dagman_sens_prior',

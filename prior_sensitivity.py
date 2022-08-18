@@ -86,23 +86,28 @@ start = stop-ntrials
 ### flux to be injected
 ns = ns_min + delta*args.pid
 flux = inj.mu2flux(ns)
-fluxList = [flux]
+flux_inj = [flux]
 
 ndisc = 0
 TS_list=[]
 ns_list=[]
+flux_list=[]
 print('starting trials')
 for j in range(start,stop):
     ni, sample = inj.sample(ns,poisson=True)
     val = llh.scan(0.0,0.0, scramble = True, seed = j,spatial_prior=spatial_prior,
                    inject = sample,time_mask=[time_window,GW_time], pixel_scan=[nside,3.])
-    ns_list.append(ni)
     try:
         if val['TS_spatial_prior_0'].max() > 0.:
             ndisc+=1
         TS_list.append(val['TS_spatial_prior_0'].max())
+        max_prior = np.argmax(val['TS_spatial_prior_0'])
+        ns_list.append(val['nsignal'][max_prior])
+        flux_list.append(inj.mu2flux(val['nsignal'][max_prior]))
     except ValueError:
         TS_list.append(0.)
+        ns_list.append(0.)
+        flux_list.append(0.)
         continue
 
 print(ns_list)
@@ -115,7 +120,8 @@ if P==1.:
 
 results={
     'passFrac':[P],
-    'fluxList':fluxList,
+    'flux_inj':flux_inj,
+    'flux_fit':flux_list,
     'TS_List':TS_list,
     'ns_fit':ns_list,
     'ns_inj':ns
