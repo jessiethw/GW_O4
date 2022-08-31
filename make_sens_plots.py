@@ -105,7 +105,7 @@ if not reload:
         mpl.rcParams.update({'font.size':fontsize})
         fig,ax = plt.subplots(figsize = (10,6))
         ax.tick_params(labelsize=fontsize)    
-
+        
         for fit_dict in fits:
             label=r'{}: $\chi^2$ = {:.2f}, d.o.f. = {}'.format(fit_dict['name'], fit_dict['chi2'], fit_dict['dof'])
             ax.plot(fit_dict['xfit'], fit_dict['yfit'], 
@@ -206,15 +206,15 @@ if args.with_map:
     plt.savefig(f'./plots/S191216ap_bias.png')
 
 plt.clf()
-dec_range = np.linspace(-1,1,35)
 o3_sens = [1.15, 1.06, .997, .917, .867, .802, .745, .662,
             .629, .573, .481, .403, .332, .250, .183, .101,
             .035, .0286, .0311, .0341, .0361, .0394, .0418,
             .0439, .0459, .0499, .0520, .0553, .0567, .0632,
             .0679, .0732, .0788, .083, .0866]
 o3_sens = np.array(o3_sens)
-plt.plot(dec_range, o3_sens, label='O3 (realtime)')
+plt.plot(np.sin(np.deg2rad(decs)), o3_sens, label='O3 (realtime)')
 plt.plot(np.sin(np.deg2rad(decs)), sensitivity_flux, label='O4 (this work)')
+
 plt.xlabel('sin(declination)')
 plt.ylabel(r'Sensitivity flux E$^2$ dN/dE at 1 TeV [GeV cm$^-2$]')
 plt.title('Point source sensitivity flux (gamma=2.0)')
