@@ -54,6 +54,7 @@ job = pycondor.Job(
     getenv=True,
     universe='vanilla',
     verbose=2,
+    request_cpus=10,
     request_memory=mem,
     extra_lines=[
         'should_transfer_files = YES',
@@ -62,12 +63,13 @@ job = pycondor.Job(
 
 #scan over decs (for point source)
 if args.skymap is None:
-    decs= np.linspace(-85,85,35)
+    #decs= np.linspace(-85,85,35)
+    decs=[-67.5, -45., -22.5, 0., 22.5, 45., 67.5]
     for dec in decs:
         sens_trials=glob.glob(f'./sens_trials/point_source/ps_sens_{str(dec)}_trials_*.pkl')
         for i in range(200):
-            if f'./sens_trials/point_source/ps_sens_{str(dec)}_trials_{i}.pkl' in sens_trials:
-                continue
+            #if f'./sens_trials/point_source/ps_sens_{str(dec)}_trials_{i}.pkl' in sens_trials:
+            #    continue
             job.add_arg('--dec %s --pid %s --output %s' % (dec, i, args.output+'point_source/'))
 
 # for spatial prior map

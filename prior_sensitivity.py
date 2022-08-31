@@ -48,6 +48,8 @@ p.add_argument("--output", default='./',type=str,
                 help="path to save output")
 p.add_argument("--name", default=None,type=str,
                 help="name of gw event")
+p.add_argument("--ncpu", default=10, type=int,
+                help='Number of cpus to request')
 args = p.parse_args()
 ###################################################################
 
@@ -64,8 +66,8 @@ spatial_prior = SpatialPrior(skymap, allow_neg=False)
 time_window = 500./3600./24. #500 seconds in days
 
 print('going into config')
-llh, inj = config(seasons,gamma=index,ncpu=2,seed=args.pid+1, days=5,
-            spatial_prior=spatial_prior,
+llh, inj = config(seasons,gamma=index,seed=args.pid+1, days=5,
+            spatial_prior=spatial_prior, ncpu=args.ncpu,
             time_mask=[time_window,GW_time], poisson=True)
 print('done with config llh/inj')
 ###########################################################
@@ -95,7 +97,7 @@ flux_list=[]
 print('starting trials')
 for j in range(start,stop):
     ni, sample = inj.sample(ns,poisson=True)
-    val = llh.scan(0.0,0.0, scramble = True, seed = j,spatial_prior=spatial_prior,
+    val = llh.scan(0.0,0.0, scramble = True, seed = j,spatial_prior=spatial_prior, 
                    inject = sample,time_mask=[time_window,GW_time], pixel_scan=[nside,3.])
     try:
         if val['TS_spatial_prior_0'].max() > 0.:
