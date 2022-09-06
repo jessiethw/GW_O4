@@ -13,7 +13,9 @@ import pickle
 from datetime import date
 from fast_response import web_utils
 
-def make_bg_pval_dist(fontsize=15):
+def make_bg_pval_dist(fontsize=15, lower_y_bound=-3):
+    # function to make pval dist. lower_y_bound arg gives the exponent to set the lower y-axis 
+    # limit, e.g. 10^-3
     all_maps_saved_pkl=sorted(glob.glob('/data/user/jthwaites/o4-mocks/*/*.pickle'))[::-1]
     saved_mock_pkl=[all_maps_saved_pkl[0]]
 
@@ -42,16 +44,17 @@ def make_bg_pval_dist(fontsize=15):
     lt_10per = sum(n[bins[:-1]<=0.1])
     lt_1per=sum(n[bins[:-1]<=0.01])
     
-    plt.step(p_x_vals[1:], np.diff(p_x_vals), label = 'Uniform p-value expectation', lw = 3.)
-    plt.plot([0.1,0.1], [1e-3, 1e0],linestyle='dotted', label=f'{lt_10per*100.:.2f} \% of p-values $<$ 0.1')
-    plt.plot([0.01, 0.01], [1e-3, 1e0], linestyle='dashed',label=f'{lt_1per*100.:.2f} \% of p-values $<$ 0.01')
+    uniform_bins=np.logspace(lower_y_bound,0.,int(abs(lower_y_bound*7))+1) #evenly spaced bins in logspace
+    plt.step(uniform_bins[1:], np.diff(uniform_bins), label = 'Uniform p-value expectation', lw = 3.)
+    plt.plot([0.1,0.1], [10**lower_y_bound, 1e0],linestyle='dotted', label=f'{lt_10per*100.:.2f} \% of p-values $<$ 0.1')
+    plt.plot([0.01, 0.01], [10**lower_y_bound, 1e0], linestyle='dashed',label=f'{lt_1per*100.:.2f} \% of p-values $<$ 0.01')
 
     plt.xscale('log')
     plt.yscale('log')
     plt.gca().invert_xaxis()
     plt.grid(which = 'both', alpha = 0.2)
     plt.xlim(1.1e0,1e-3)
-    plt.ylim(10**-2.5, 1e0)
+    plt.ylim(10**lower_y_bound, 1e0)
     plt.xlabel('p-value', fontsize = fontsize)
     plt.ylabel('Fraction of Analyses', fontsize = fontsize)
     plt.legend(loc = 1, fontsize = fontsize)
