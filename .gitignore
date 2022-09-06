@@ -6,3 +6,4 @@ __pycache__/*
 plots/
 plots/*
 calculated_sensitivities.pickle
+v1.2_calculated_sensitivities.pickle
