@@ -27,10 +27,14 @@ def make_bg_pval_dist(fontsize=15, lower_y_bound=-3):
 
     all_mocks={}
     print('Loading %i mocks (may take a while)'%(len(saved_mock_pkl)))
+    i=0
     for mock in saved_mock_pkl:
         with open(mock,'rb') as f:
             result=pickle.load(f)
             all_mocks[result['name']]=result['p']
+        i+=1
+        if (i/len(saved_mock_pkl))%10==0:
+            print('%i loaded'%((i/len(saved_mock_pkl))%10))
     print('Done loading mocks.')
 
     mpl.rcParams.update({'font.size':fontsize})
