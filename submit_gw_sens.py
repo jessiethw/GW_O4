@@ -19,6 +19,11 @@ parser.add_argument(
     '--skymap', type=str,
     default=None,
     help='skymap path to xml file, if using a prior')
+parser.add_argument(
+    '--version', type=str,
+    default='v001p02',
+    help='GFUOnline version and patch (default=v001p02)'
+)
 args = parser.parse_args()
 
 username = pwd.getpwuid(os.getuid())[0]
@@ -41,7 +46,7 @@ if args.skymap is None:
 else: 
     print('Running trials for given skymap')
     code_file='/data/user/jthwaites/gw_o4/prior_sensitivity.py'
-    mem=10000
+    mem=8000
 
 ### Create Dagman to submit jobs to cluster    
 job = pycondor.Job(
@@ -54,7 +59,7 @@ job = pycondor.Job(
     getenv=True,
     universe='vanilla',
     verbose=2,
-    request_cpus=10,
+    request_cpus=5,
     request_memory=mem,
     extra_lines=[
         'should_transfer_files = YES',
@@ -92,8 +97,8 @@ else:
     skymap_path=wget.download(skymap, out=f'{args.output}{name}/{name}.fits.gz')
 
     for i in range(50):
-        job.add_arg('--skymap %s --pid %s --output %s --name %s'
-                %(f'{args.output}{name}/{name}.fits.gz',i, f'{args.output}{name}/', name))
+        job.add_arg('--skymap %s --pid %s --output %s --name %s --version %s'
+                %(f'{args.output}{name}/{name}.fits.gz',i, f'{args.output}{name}/', name, args.version))
 
 dagman = pycondor.Dagman(
     'gw_dagman_sens_prior',

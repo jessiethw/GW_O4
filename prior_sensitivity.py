@@ -48,18 +48,24 @@ p.add_argument("--output", default='./',type=str,
                 help="path to save output")
 p.add_argument("--name", default=None,type=str,
                 help="name of gw event")
-p.add_argument("--ncpu", default=10, type=int,
+p.add_argument("--ncpu", default=5, type=int,
                 help='Number of cpus to request')
+p.add_argument("--version", default="v001p02", type=str,
+                help='GFU version and patch number (default = v001p02)')
+p.add_argument("--nside", default=256, type=int,
+                help='nside of map to use')
 args = p.parse_args()
 ###################################################################
 
 ############## CONFIGURE LLH AND INJECTOR ################
-seasons = ['GFUOnline_v001p03','IC86, 2011-2018']
+seasons = [f'GFUOnline_{args.version}','IC86, 2011-2018']
 erange  = [0,10]
 index = 2.
 GW_time = args.time
 skymap, skymap_header = hp.read_map(args.skymap, h=True, verbose=False)
 nside=hp.pixelfunc.get_nside(skymap)
+skymap = hp.pixelfunc.ud_grade(skymap,nside_out=args.nside,power=-2)
+nside=args.nside
 
 spatial_prior = SpatialPrior(skymap, allow_neg=False)
 
@@ -130,8 +136,8 @@ results={
 }
 print('saving everything')
 if args.name is not None:
-    with open(args.output+'/%s_prior_sens_trials_%s.pkl'%(args.name, args.pid), 'wb') as f:
+    with open(args.output+f'/{args.version}_{args.name}_prior_sens_trials_{args.pid}.pkl', 'wb') as f:
         pickle.dump(results, f)
 else: 
-    with open(args.output+'/prior_sens_trials_%s.pkl'%(args.pid), 'wb') as f:
+    with open(args.output+f'/{args.version}_prior_sens_trials_{args.pid}.pkl', 'wb') as f:
         pickle.dump(results, f)
