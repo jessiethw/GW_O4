@@ -36,9 +36,13 @@ p.add_argument("--reload_sens", default=False, type=bool,
                 help='choice to reload saved ps sensitivities for sens vs dec plot')
 p.add_argument("--with_map", default=False, type=bool,
                 help='calculate a sensitivity for a gw event with a spatial prior map')
+p.add_argument("--version", default='v001p02', type=str,
+                help='version of GFUOnline to use (default= v001p02)')
+p.add_argument("--nside", default=256, type=int,
+		help='nside to use for map if using spatial prior')
 args = p.parse_args()
 
-def calc_sensitivty(passing_frac, flux_inj):
+def calc_sensitivty(passing_frac, flux_inj, flux=True):
     passing = np.array(passing_frac, dtype=float)
     errs = sensitivity_utils.binomial_error(passing, 1000.)
     
@@ -70,6 +74,8 @@ def calc_sensitivty(passing_frac, flux_inj):
 
     if not args.with_map:
         print('Sensitivity at dec = %.1f: %.2f events'%(dec, sensitivity))
+    elif not flux:
+        print(f'Sensitivity  = {sensitivity} events')
     else:
         print(f'Sensitivity = {sensitivity} GeV cm^-2')
     return sensitivity, fits, errs
@@ -140,7 +146,7 @@ if not reload:
         #### Calculate sensitivity #####
         sensitivity, fits, errs = calc_sensitivty(passing_frac[:16], ns_inj[:16])
         
-        llh = config(['GFUOnline_v001p03','IC86, 2011-2018'],gamma=2.,ncpu=2, days=5,
+        llh = config([f'GFUOnline_{args.version}','IC86, 2011-2018'],gamma=2.,ncpu=2, days=5,
               time_mask=[500./3600./24.,57982.52852350], poisson=True)
 
         inj = PointSourceInjector(E0=1000.)
@@ -204,27 +210,36 @@ else:
         decs=sens['dec']
 
 if args.with_map:
-    sens_trials=[f'./sens_trials/S191216ap/S191216ap_prior_sens_trials_{str(pid)}.pkl' 
+    sens_trials=[f'./sens_trials/S191216ap/{args.version}_S191216ap_prior_sens_trials_{str(pid)}.pkl' 
                     for pid in range(0,50)]
     passing_frac=[]
     flux_fit_mean=[]
     flux_fit_1sigma=[]
     flux_inj=[]
+    flux_fit=[]
     for i in range(len(sens_trials)):
         with open(sens_trials[i], 'rb') as f:
                 result=pickle.load(f)
                 passing_frac.append(result['passFrac'][0])
-                flux_fit_mean.append(np.mean(result['flux_fit'])*1e9)
-                flux_fit_1sigma.append(np.std(result['flux_fit'])*1e9)
-                flux_inj.append(result['flux_inj'][0]*1e9)
+                flux_fit_mean.append(np.mean(result['ns_fit']))
+                flux_fit_1sigma.append(np.std(result['ns_fit']))
+                flux_inj.append(result['ns_inj'])
+                flux_fit.append(result['ns_fit'])
+                #flux_fit_mean.append(np.mean(result['flux_fit'])*1e9)
+                #flux_fit_1sigma.append(np.std(result['flux_fit'])*1e9)
+                #flux_inj.append(result['flux_inj'][0]*1e9)
 
     #### Calculate sensitivity #####
-    sensitivity, fits, err = calc_sensitivty(passing_frac[:16], flux_inj[:16])
+    sensitivity, fits, err = calc_sensitivty(passing_frac[:16], flux_inj[:16], flux=False)
 
     ### Get map min/max dec ###
     skymap, skymap_header = hp.read_map('/data/user/jthwaites/gw_o4/sens_trials/S191216ap/S191216ap.fits.gz',
                                         h=True, verbose=False)
     nside=hp.pixelfunc.get_nside(skymap)
+    if nside != args.nside:
+        skymap = hp.pixelfunc.ud_grade(skymap,nside_out=args.nside,power=-2)
+        nside=args.nside
+
     # In FRA.py - need to find a way to use this?
     ipix_90=ipixs_in_percentage(skymap, 0.9)
     src_theta, src_phi = hp.pix2ang(nside, ipix_90)
@@ -235,7 +250,6 @@ if args.with_map:
     min_dec=min(np.sin(src_dec))
     best_dec=np.sin(np.pi/2. - hp.pix2ang(nside, np.where(skymap==max(skymap))[0][0])[0])
     
-
     mpl.rcParams.update({'font.size':fontsize})
     fig,ax = plt.subplots(figsize = (10,6))
     ax.tick_params(labelsize=fontsize)    
@@ -254,21 +268,30 @@ if args.with_map:
     ax.set_ylabel(r'Fraction TS $>$ threshold', fontsize = fontsize)
 
     plt.title(f'Passing fraction for S191216ap at 1 TeV'+r' [GeV cm$^{-2}$]')
-    plt.savefig(f'./plots/S191216ap_passing_frac.png')
+    plt.savefig(f'./plots/{args.version}_S191216ap_passing_frac.png')
     
     ### Make bias plot ###
-    plt.clf()
-    plt.plot(flux_inj,flux_fit_mean)
-    plt.plot(flux_inj,flux_inj,'--', color='C0')
-    plt.fill_between(flux_inj, 
+    for j in [0,1]:
+        plt.clf()
+        if j==0:
+            plt.plot(flux_inj,flux_fit_mean)
+            plt.fill_between(flux_inj, 
                     [flux_fit_mean[i]-flux_fit_1sigma[i] for i in range(len(flux_fit_mean))], 
                     [flux_fit_mean[i]+flux_fit_1sigma[i] for i in range(len(flux_fit_mean))], 
                     alpha=0.2)
+        else: 
+            for i in range(len(flux_inj)):
+                plt.plot([flux_inj[i]]*len(flux_fit[i]), flux_fit[i], '.', color='C0')
+        plt.plot(flux_inj,flux_inj,'--', color='C1', lw=2.)
 
-    plt.xlabel('Flux inj')
-    plt.ylabel('Flux fit')
-    plt.title(f'Bias for S191216ap spatial prior at 1 TeV '+r'[GeV cm$^-2$]')
-    plt.savefig(f'./plots/S191216ap_bias.png')
+        plt.xlabel('n inj')
+        plt.ylabel('n fit')
+        plt.title(f'Bias for S191216ap spatial prior at 1 TeV')
+        #plt.xlabel('Flux inj')
+        #plt.ylabel('Flux fit')
+        #plt.title(f'Bias for S191216ap spatial prior at 1 TeV '+r'[GeV cm$^-2$]')
+        if j==0: plt.savefig(f'./plots/{args.version}_S191216ap_bias.png')
+        else: plt.savefig(f'./plots/{args.version}_S191216ap_bias_scatter.png')
 
 plt.clf()
 o3_sens = [1.15, 1.06, .997, .917, .867, .802, .745, .662,
@@ -292,6 +315,7 @@ plt.yscale('log')
 plt.xlim([-1,1])
 plt.legend(loc=0)
 if args.with_map:
-    plt.savefig(f'./plots/sensitivity_flux_w_prior.png')
+    plt.savefig(f'./plots/{args.version}_sensitivity_flux_w_prior.png')
 else:
     plt.savefig(f'./plots/sensitivity_flux_v_dec.png')
+
