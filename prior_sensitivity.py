@@ -58,7 +58,7 @@ args = p.parse_args()
 ###################################################################
 
 ############## CONFIGURE LLH AND INJECTOR ################
-seasons = [f'GFUOnline_{args.version}','IC86, 2011-2018']
+seasons = [f'GFUOnline_{args.version}','IC86, 2011-2019']
 erange  = [0,10]
 index = 2.
 GW_time = args.time
@@ -94,31 +94,38 @@ start = stop-ntrials
 ### flux to be injected
 ns = ns_min + delta*args.pid
 flux = inj.mu2flux(ns)
-flux_inj = [flux]
 
+##need to unify naming, make sure saving correct things
 ndisc = 0
 TS_list=[]
-ns_list=[]
-flux_list=[]
+ns_fit=[]
+ns_inj=[]
+gamma_fit=[]
+flux_inj=[]
+flux_fit=[]
 print('starting trials')
 for j in range(start,stop):
-    ni, sample = inj.sample(ns,poisson=True)
+    ni, sample = inj.sample(mean_signal=ns,poisson=False)
+
+    if sample is not None:
+        sample['time']=GW_time
+        ns_inj.append(sample.size)
+        flux_inj.append(inj.mu2flux(sample.size))
+    else: 
+        ns_inj.append(0)
+        flux_inj.append(0.)
+
     val = llh.scan(0.0,0.0, scramble = True, seed = j,spatial_prior=spatial_prior, 
                    inject = sample,time_mask=[time_window,GW_time], pixel_scan=[nside,3.])
-    try:
-        if val['TS_spatial_prior_0'].max() > 0.:
-            ndisc+=1
-        TS_list.append(val['TS_spatial_prior_0'].max())
-        max_prior = np.argmax(val['TS_spatial_prior_0'])
-        ns_list.append(val['nsignal'][max_prior])
-        flux_list.append(inj.mu2flux(val['nsignal'][max_prior]))
-    except ValueError:
-        TS_list.append(0.)
-        ns_list.append(0.)
-        flux_list.append(0.)
-        continue
+                   
+    maxLoc = np.argmax(val['TS_spatial_prior_0'])###pick out max of all likelihood ratios at diff pixels
+    if val['TS_spatial_prior_0'].max() > 0.:
+        ndisc+=1
+    
+    ns_fit.append(val['nsignal'][maxLoc])##get corresponding fitted number of signals
+    flux_fit.append(inj.mu2flux(val['nsignal'][maxLoc]))
+    gamma_fit.append(val['gamma'][0])
 
-print(ns_list)
 print('done with trials')
 P = float(ndisc)/ntrials
 if P==0.:
@@ -128,11 +135,12 @@ if P==1.:
 
 results={
     'passFrac':[P],
-    'flux_inj':flux_inj,
-    'flux_fit':flux_list,
     'TS_List':TS_list,
-    'ns_fit':ns_list,
-    'ns_inj':ns
+    'ns_fit':ns_fit,
+    'ns_inj':ns_inj,
+    'gamma_fit':gamma_fit,
+    'flux_inj':flux_inj,
+    'flux_fit':flux_fit
 }
 print('saving everything')
 if args.name is not None:
