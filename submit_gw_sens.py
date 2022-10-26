@@ -101,8 +101,13 @@ else:
                 %(f'{args.output}{name}/{name}.fits.gz',i, f'{args.output}{name}/', name, args.version, 
                      event_mjd))
 
+if args.skymap is None:
+    dag_name=f'gw_dagman_sens_ps_{args.version}'
+else: 
+    dag_name=f'gw_dagman_sens_prior_{args.version}'
+
 dagman = pycondor.Dagman(
-    'gw_dagman_sens_prior',
+    dag_name,
     submit=submit, verbose=2)
     
 dagman.add_job(job)
