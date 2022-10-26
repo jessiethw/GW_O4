@@ -11,13 +11,6 @@ import matplotlib as mpl
 mpl.use('agg')
 import matplotlib.pyplot as plt
 import healpy as hp
-
-import scipy as sp
-from numpy.lib.recfunctions   import append_fields
-from scipy.optimize       import curve_fit
-from scipy.stats          import chi2
-from scipy import sparse
-from scipy.special import erfinv
 import pickle
 import argparse
 
@@ -28,8 +21,7 @@ if '/data/user/jthwaites/gw_o4' not in sys.path:
 from config_GW            import config
 from fast_response        import sensitivity_utils
 
-p = argparse.ArgumentParser(description="Calculates Sensitivity and makes plots",
-                            formatter_class=argparse.RawTextHelpFormatter)
+p = argparse.ArgumentParser(description="Calculates Sensitivity and makes plots")
 p.add_argument("--fontsize", default=15, type=int,
                 help="fontsize for plots (default=15)")
 p.add_argument("--reload_sens", default=False, type=bool,
@@ -44,25 +36,21 @@ args = p.parse_args()
 
 def calc_sensitivty(passing_frac, flux_inj, flux=True):
     passing = np.array(passing_frac, dtype=float)
+    flux_inj = np.array(flux_inj)
+    passing = np.array(passing, dtype=float)
     errs = sensitivity_utils.binomial_error(passing, 1000.)
-    
+
     fits, plist = [], []
     for func, func_name in [(sensitivity_utils.chi2cdf, 'chi2'),
                             (sensitivity_utils.erfunc, 'Error function'),
                             (sensitivity_utils.incomplete_gamma, 'Incomplete gamma')]:
         try:
-            if func_name=='chi2':
-                p0=[0.3, 0.01, 0.02]
-            #incomplete gamma not working rn
-            #elif func_name=='Incomplete gamma':
-            #    p0=[2., 3.]
-            else: p0=None
-            sens_fit=sensitivity_utils.sensitivity_fit(flux_inj, passing, errs, func, p0=p0)
+            sens_fit=sensitivity_utils.sensitivity_fit(flux_inj, passing, errs, func, p0=None)
             if str(sens_fit['chi2']) != 'nan' and str(sens_fit['pval']) != 'nan':
                 fits.append(sens_fit)
                 plist.append(fits[-1]['pval'])
-            #else: 
-            #    print(f"{func_name} fit failed in upper limit calculation")
+            else: 
+                print(f"{func_name} fit failed in upper limit calculation")
         except:
             print(f"{func_name} fit failed in upper limit calculation")
 
@@ -144,7 +132,7 @@ if not reload:
                 ns_inj.append(result['ns_inj'])
 
         #### Calculate sensitivity #####
-        sensitivity, fits, errs = calc_sensitivty(passing_frac[:16], ns_inj[:16])
+        sensitivity, fits, errs = calc_sensitivty(passing_frac[1:16], ns_inj[1:16])
         
         llh = config([f'GFUOnline_{args.version}','IC86, 2011-2018'],gamma=2.,ncpu=2, days=5,
               time_mask=[500./3600./24.,57982.52852350], poisson=True)
@@ -170,7 +158,7 @@ if not reload:
                 ax.axvline(fit_dict['sens'], color = 'm', linewidth = 0.3, linestyle = '-.')
                 ax.text(3.5, 0.8, 'Sens. = {:.2f} events'.format(fit_dict['sens']), fontsize = fontsize)
                 ax.text(3.5, 0.7, ' = {:.1e}'.format(inj.mu2flux(sensitivity)*1e9) + r' GeV cm$^-2$', fontsize=fontsize)
-        ax.errorbar(ns_inj[:16], passing_frac[:16], yerr=errs, capsize = 3, linestyle='', marker = 's', markersize = 2)
+        ax.errorbar(ns_inj[1:16], passing_frac[1:16], yerr=errs, capsize = 3, linestyle='', marker = 's', markersize = 2)
         ax.legend(loc=0, fontsize = fontsize)
         ax.set_xlabel('n inj', fontsize = fontsize)
         ax.set_ylabel(r'Fraction TS $>$ threshold', fontsize = fontsize)
@@ -178,7 +166,7 @@ if not reload:
         plt.title(f'Passing fraction for point source, dec = {str(dec)}')
 
         plt.savefig(f'./plots/passing_frac_dec{str(dec)}.png')
-
+        
         ### Make bias plot ###
         plt.clf()
         plt.plot(ns_inj,ns_fit_mean)
@@ -230,7 +218,7 @@ if args.with_map:
                 #flux_inj.append(result['flux_inj'][0]*1e9)
 
     #### Calculate sensitivity #####
-    sensitivity, fits, err = calc_sensitivty(passing_frac[:16], flux_inj[:16], flux=False)
+    sensitivity, fits, err = calc_sensitivty(passing_frac[1:16], flux_inj[1:16], flux=False)
 
     ### Get map min/max dec ###
     skymap, skymap_header = hp.read_map('/data/user/jthwaites/gw_o4/sens_trials/S191216ap/S191216ap.fits.gz',
@@ -260,8 +248,8 @@ if args.with_map:
         if fit_dict['ls'] == '-':
             ax.axhline(0.9, color = 'm', linewidth = 0.3, linestyle = '-.')
             ax.axvline(fit_dict['sens'], color = 'm', linewidth = 0.3, linestyle = '-.')
-            ax.text(0.05, 0.8, 'Sens. = {:.4f}'.format(fit_dict['sens'])+ r' GeV cm$^-2$', fontsize = fontsize)
-    ax.errorbar(flux_inj[:16], passing_frac[:16], yerr=err, capsize = 3, linestyle='', marker = 's', markersize = 2)
+            ax.text(0.05, 0.8, 'Sens. = {:.4f}'.format(fit_dict['sens'])+ r' events', fontsize = fontsize)
+    ax.errorbar(flux_inj[1:16], passing_frac[1:16], yerr=err, capsize = 3, linestyle='', marker = 's', markersize = 2)
     ax.legend(loc=0, fontsize = fontsize)
     plt.xlim([-0.02, max(flux_inj[:16])+0.02])
     ax.set_xlabel('flux inj', fontsize = fontsize)
