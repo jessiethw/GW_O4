@@ -71,14 +71,14 @@ name = args.name
 name = name.replace('_', ' ')
 
 f = GWFollowup(args.name, args.skymap, start, stop)
-f._allow_neg = args.allow_neg_ts
-spatial_prior = f.skymap
+f._allow_neg = False
 llh=f.llh
 nside=f.nside
 
-f.initialize_injector()
+#initialize injector and spatial prior
+f.initialize_injector() 
+spatial_prior = f.spatial_prior
 inj=f.inj
-
 print('Initialized LLH/injector')
 ###########################################################
 
@@ -122,12 +122,12 @@ for j in range(start,stop):
     val = llh.scan(0.0,0.0, scramble = True, seed = j,spatial_prior=spatial_prior, 
                    inject = sample,time_mask=[time_window,GW_time], pixel_scan=[nside,3.])
                    
-    maxLoc = np.argmax(val['TS_spatial_prior_0'])###pick out max of all likelihood ratios at diff pixels
+    maxLoc = np.argmax(val['TS_spatial_prior_0'])  #pick out max of all likelihood ratios at diff pixels
     if val['TS_spatial_prior_0'].max() > 0.:
         ndisc+=1
     
-    TS_list.append(val['TS_spatial_prior_0']).max()
-    ns_fit.append(val['nsignal'][maxLoc])##get corresponding fitted number of signals
+    TS_list.append(val['TS_spatial_prior_0'].max())
+    ns_fit.append(val['nsignal'][maxLoc])  #get corresponding fitted number of signals
     flux_fit.append(inj.mu2flux(val['nsignal'][maxLoc]))
     gamma_fit.append(val['gamma'][0])
 

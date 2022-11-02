@@ -98,8 +98,8 @@ else:
 
     for i in range(50):
         job.add_arg('--skymap %s --pid %s --output %s --name %s --version %s --time %f'
-                %(f'{args.output}{name}/{name}.fits.gz',i, f'{args.output}{name}/', name, args.version, 
-                     event_mjd))
+                %(f'{args.output}{name}/{name}.fits.gz', i, f'{args.output}{name}/', name, args.version, 
+                  event_mjd))
 
 if args.skymap is None:
     dag_name=f'gw_dagman_sens_ps_{args.version}'
