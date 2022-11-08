@@ -109,27 +109,32 @@ flux_inj=[]
 flux_fit=[]
 print('starting trials')
 for j in range(start,stop):
-    ni, sample = inj.sample(mean_signal=ns,poisson=False)
 
-    if sample is not None:
+    ni, sample = inj.sample(ns,poisson=True)
+    if sample is not None: 
         sample['time']=GW_time
+
+    val = llh.scan(0.0,0.0, scramble = True, seed = j, spatial_prior=spatial_prior,
+                   inject = sample,time_mask=[time_window,GW_time], pixel_scan=[nside,3.])
+    
+    try:
+        maxLoc = np.argmax(val['TS_spatial_prior_0'])  #pick out max of all likelihood ratios at diff pixels
+    except ValueError:
+        continue
+    
+    TS_list.append(val['TS_spatial_prior_0'].max())
+    if sample is not None: 
         ns_inj.append(sample.size)
         flux_inj.append(inj.mu2flux(sample.size))
     else: 
         ns_inj.append(0)
-        flux_inj.append(0.)
 
-    val = llh.scan(0.0,0.0, scramble = True, seed = j,spatial_prior=spatial_prior, 
-                   inject = sample,time_mask=[time_window,GW_time], pixel_scan=[nside,3.])
-                   
-    maxLoc = np.argmax(val['TS_spatial_prior_0'])  #pick out max of all likelihood ratios at diff pixels
     if val['TS_spatial_prior_0'].max() > 0.:
         ndisc+=1
     
-    TS_list.append(val['TS_spatial_prior_0'].max())
-    ns_fit.append(val['nsignal'][maxLoc])  #get corresponding fitted number of signals
+    ns_fit.append(val['nsignal'][maxLoc])
+    gamma_fit.append(val['gamma'][maxLoc])
     flux_fit.append(inj.mu2flux(val['nsignal'][maxLoc]))
-    gamma_fit.append(val['gamma'][0])
 
 print('done with trials')
 P = float(ndisc)/ntrials
