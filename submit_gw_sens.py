@@ -22,8 +22,10 @@ parser.add_argument(
 parser.add_argument(
     '--version', type=str,
     default='v001p02',
-    help='GFUOnline version and patch (default=v001p02)'
-)
+    help='GFUOnline version and patch (default=v001p02)')
+parser.add_argument(
+    '--tw', type=float, default=1000., #[-1, +14]day: 1382400
+    help='time window to use (in sec)')
 args = parser.parse_args()
 
 username = pwd.getpwuid(os.getuid())[0]
@@ -68,14 +70,17 @@ job = pycondor.Job(
 
 #scan over decs (for point source)
 if args.skymap is None:
-    #decs= np.linspace(-85,85,35)
-    decs=[-67.5, -45., -22.5, 0., 22.5, 45., 67.5]
+    decs= np.linspace(-85,85,35)
+    #decs=[-67.5, -45., -22.5, 0., 22.5, 45., 67.5]
+
+    if int(args.tw) !=1000: out_folder = args.output+'point_source_2week/'
+    else: out_folder = args.output+'point_source/'
     for dec in decs:
         sens_trials=glob.glob(f'./sens_trials/point_source/ps_sens_{str(dec)}_trials_*.pkl')
         for i in range(200):
             #if f'./sens_trials/point_source/ps_sens_{str(dec)}_trials_{i}.pkl' in sens_trials:
             #    continue
-            job.add_arg('--dec %s --pid %s --output %s' % (dec, i, args.output+'point_source/'))
+            job.add_arg('--dec %s --pid %s --output %s --tw %s'%(dec, i, out_folder, args.tw))
 
 # for spatial prior map
 else: 
@@ -96,10 +101,13 @@ else:
         os.mkdir(args.output+name)
     skymap_path=wget.download(skymap, out=f'{args.output}{name}/{name}.fits.gz')
 
+    if int(args.tw) !=1000: out_folder = args.output+f'{name}_2week/'
+    else: out_folder = f'{args.output}{name}/'
+
     for i in range(50):
-        job.add_arg('--skymap %s --pid %s --output %s --name %s --version %s --time %f --nsMax 6.'
-                %(f'{args.output}{name}/{name}.fits.gz', i, f'{args.output}{name}/', name, args.version, 
-                  event_mjd))
+        job.add_arg('--skymap %s --pid %s --output %s --name %s --version %s --time %f --tw %f'
+                %(f'{args.output}{name}/{name}.fits.gz', i, out_folder, name, args.version, 
+                  event_mjd, args.tw))
 
 if args.skymap is None:
     dag_name=f'gw_dagman_sens_ps_{args.version}'

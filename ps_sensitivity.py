@@ -47,18 +47,20 @@ p.add_argument("--ra", default=0., type=float,
                 help="RA of point source to test (Default=0.0)")
 p.add_argument("--output", default='./',type=str,
                 help="path to save output")
+p.add_argument("--tw", default=1000., type=float,
+               help='Time window, in seconds (default=1000)')
 args = p.parse_args()
 ###################################################################
 
 ############## CONFIGURE LLH AND INJECTOR ################
-seasons = ['GFUOnline_v001p03','IC86, 2011-2018']
+seasons = ['GFUOnline_v001p02','IC86, 2011-2018']
 erange  = [0,10]
 index = 2.
 GW_time = 57982.52852350
 #Location of host galaxy of GW170817: Ra: 197.4458, dec: -23.3844
 src_ra = np.radians(args.ra)
 src_dec = np.radians(args.dec)
-time_window = 500./3600./24. #500 seconds in days
+time_window = args.tw/2./3600./24. #tw in seconds to days
 
 llh = config(seasons,gamma=index,ncpu=2,seed=args.pid+1, days=5,
               time_mask=[time_window,GW_time], poisson=True)
@@ -117,5 +119,9 @@ results={
     'ns_inj':ns
 }
 
-with open(args.output+'/ps_sens_%s_trials_%s.pkl'%(str(args.dec), args.pid), 'wb') as f:
-    pickle.dump(results, f)
+if int(args.tw) != 1000:
+    with open(args.output+'/ps_sens_%s_trials_%s_2week.pkl'%(str(args.dec), args.pid), 'wb') as f:
+        pickle.dump(results, f)
+else:
+    with open(args.output+'/ps_sens_%s_trials_%s.pkl'%(str(args.dec), args.pid), 'wb') as f:
+        pickle.dump(results, f)

@@ -53,13 +53,15 @@ p.add_argument("--version", default="v001p02", type=str,
                 help='GFU version and patch number (default = v001p02)')
 p.add_argument("--nside", default=256, type=int,
                 help='nside of map to use')
+p.add_argument("--tw", default=1000., type=float,
+                help='Time window to use, in sec (default 500)')
 args = p.parse_args()
 ###################################################################
 
 ############## CONFIGURE LLH AND INJECTOR ################
 GW_time = args.time
 
-delta_t = 1000.
+delta_t = args.tw
 time_window = delta_t/2./3600./24. #500 seconds in days
 gw_time = Time(args.time, format='mjd')
 start_time = gw_time - (delta_t / 86400. / 2.)
@@ -153,9 +155,12 @@ results={
     'flux_fit':flux_fit
 }
 print('saving everything')
+if int(args.tw) !=1000.: suffix='_2week'
+else: suffix=''
+
 if args.name is not None:
-    with open(args.output+f'/{args.version}_{args.name}_prior_sens_trials_{args.pid}.pkl', 'wb') as f:
+    with open(args.output+f'/{args.version}_{args.name}_prior_sens_trials_{args.pid}{suffix}.pkl', 'wb') as f:
         pickle.dump(results, f)
 else: 
-    with open(args.output+f'/{args.version}_prior_sens_trials_{args.pid}.pkl', 'wb') as f:
+    with open(args.output+f'/{args.version}_prior_sens_trials_{args.pid}{suffix}.pkl', 'wb') as f:
         pickle.dump(results, f)
