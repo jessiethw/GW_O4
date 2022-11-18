@@ -76,10 +76,12 @@ if args.skymap is None:
     if int(args.tw) !=1000: out_folder = args.output+'point_source_2week/'
     else: out_folder = args.output+'point_source/'
     for dec in decs:
-        sens_trials=glob.glob(f'./sens_trials/point_source/ps_sens_{str(dec)}_trials_*.pkl')
+        sens_trials=glob.glob(f'{out_folder}ps_sens_{str(dec)}_trials_*.pkl')
         for i in range(200):
-            #if f'./sens_trials/point_source/ps_sens_{str(dec)}_trials_{i}.pkl' in sens_trials:
-            #    continue
+            if f'{out_folder}ps_sens_{str(dec)}_trials_{i}_2week.pkl' in sens_trials:
+                continue
+            #else:
+            #    print(f'{out_folder}/ps_sens_{str(dec)}_trials_{i}_2week.pkl')
             job.add_arg('--dec %s --pid %s --output %s --tw %s'%(dec, i, out_folder, args.tw))
 
 # for spatial prior map
@@ -105,9 +107,10 @@ else:
     else: out_folder = f'{args.output}{name}/'
 
     for i in range(50):
-        job.add_arg('--skymap %s --pid %s --output %s --name %s --version %s --time %f --tw %f'
-                %(f'{args.output}{name}/{name}.fits.gz', i, out_folder, name, args.version, 
-                  event_mjd, args.tw))
+        for j in range(10):
+            job.add_arg('--skymap %s --pid %i --output %s --name %s --version %s --time %f --tw %f --seed %i --ntrials %i'
+                        %(f'{args.output}{name}/{name}.fits.gz', i, out_folder, name, args.version, 
+                        event_mjd, args.tw, j, 200))
 
 if args.skymap is None:
     dag_name=f'gw_dagman_sens_ps_{args.version}'

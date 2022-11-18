@@ -55,6 +55,8 @@ p.add_argument("--nside", default=256, type=int,
                 help='nside of map to use')
 p.add_argument("--tw", default=1000., type=float,
                 help='Time window to use, in sec (default 500)')
+p.add_argument('--seed', default=0, type=int,
+                help='ensure unique seed for trials')
 args = p.parse_args()
 ###################################################################
 
@@ -94,8 +96,8 @@ delta = (ns_max - ns_min)/nstep
 
 ### Set range of for loop to guarantee unique seeds 
 ### for every job on the cluster
-stop = ntrials * (args.pid+1)
-start = stop-ntrials
+stop = ntrials * (args.pid+1+args.seed)
+start = stop-(ntrials*args.seed)
 
 ### flux to be injected
 ns = ns_min + delta*args.pid
@@ -146,7 +148,7 @@ if P==1.:
     P=0.9999
 
 results={
-    'passFrac':[P],
+    'passFrac':[P], #ignore this passing fraction! will be recalculated vs bg trials
     'TS_List':TS_list,
     'ns_fit':ns_fit,
     'ns_inj':ns_inj,
