@@ -22,6 +22,7 @@ if '/data/user/jthwaites/gw_o4' not in sys.path:
     sys.path.append('/data/user/jthwaites/gw_o4')
 from config_GW            import config
 from fast_response        import sensitivity_utils
+import glob
 
 p = argparse.ArgumentParser(description="Calculates Sensitivity and makes plots")
 p.add_argument("--fontsize", default=15, type=int,
@@ -33,8 +34,33 @@ p.add_argument("--with_map", default=False, type=bool,
 p.add_argument("--version", default='v001p02', type=str,
                 help='version of GFUOnline to use (default= v001p02)')
 p.add_argument("--nside", default=256, type=int,
-		help='nside to use for map if using spatial prior')
+		        help='nside to use for map if using spatial prior')
+p.add_argument('--tw', default=1000., type=float, 
+                help='time window to use (default =1000.)')
 args = p.parse_args()
+
+if args.with_map: name='S191216ap'
+else: name='point_source'
+
+if int(args.tw) != 1000:
+    suffix='_2week'
+    name=name+suffix
+else: suffix=''
+
+def calc_passing(TS_list, bg_trials_path):
+    bg_TS = []
+    for file in glob.glob(bg_trials_path+'/*'):
+        with open(file, 'rb') as f:
+            bg = pickle.load(file)
+            np.concatenate(bg_TS, bg['TS_List'])
+    
+    med_bg_TS = np.median(bg_TS)
+    npass = 0
+    for TS in TS_list:
+        if TS > med_bg_TS:
+            npass+=1
+
+    return npass/len(TS_list)
 
 def calc_sensitivty(passing_frac, flux_inj, flux=True):
     passing = np.array(passing_frac, dtype=float)
@@ -133,13 +159,13 @@ def make_passing_frac_curve(fits, sensitivity, errs, ns_inj, passing_frac, dec=N
 
     if dec is not None:
         plt.title(f'Passing fraction for point source, dec = {str(dec)}')
-        plt.savefig(f'./plots/passing_frac_dec{str(dec)}.png')
+        plt.savefig(f'./plots/passing_frac_dec{str(dec)}{suffix}.png')
     elif dec is None and flux: 
         plt.title(f'Passing fraction for S191216ap at 1 TeV'+r' [GeV cm$^{-2}$]')
-        plt.savefig(f'./plots/{args.version}_S191216ap_passing_frac_flux.png')
+        plt.savefig(f'./plots/{args.version}_S191216ap_passing_frac_flux{suffix}.png')
     else: 
         plt.title(f'Passing fraction for S191216ap at 1 TeV'+r' [GeV cm$^{-2}$]')
-        plt.savefig(f'./plots/{args.version}_S191216ap_passing_frac_flux.png')
+        plt.savefig(f'./plots/{args.version}_S191216ap_passing_frac_flux{suffix}.png')
 
 reload=args.reload_sens
 if args.with_map:
@@ -153,7 +179,7 @@ decs= np.linspace(-85,85,35)
 
 if not reload:
     for dec in decs:
-        sens_trials=[f'./sens_trials/point_source/ps_sens_{str(dec)}_trials_{str(pid)}.pkl' 
+        sens_trials=[f'./sens_trials/{name}/ps_sens_{str(dec)}_trials_{str(pid)}.pkl' 
                     for pid in range(0,200)]
 
         passing_frac=[]
@@ -163,7 +189,8 @@ if not reload:
         for i in range(len(sens_trials)):
             with open(sens_trials[i], 'rb') as f:
                 result=pickle.load(f)
-                passing_frac.append(result['passFrac'][0])
+                #passing_frac.append(result['passFrac'][0])
+                passing_frac=calc_passing(result['TS_List'], f'./bg_trials/{name}/')
                 ns_fit_mean.append(np.mean(result['ns_fit']))
                 ns_fit_1sigma.append(np.std(result['ns_fit']))
                 ns_inj.append(result['ns_inj'])
@@ -183,27 +210,6 @@ if not reload:
 
         #### Making passing fract curve #####
         make_passing_frac_curve(fits, sensitivity, errs, ns_inj[1:16], passing_frac[1:16], dec=dec)
-        #mpl.rcParams.update({'font.size':fontsize})
-        #fig,ax = plt.subplots(figsize = (10,6))
-        #ax.tick_params(labelsize=fontsize)    
-        
-        #for fit_dict in fits:
-        #    label=r'{}: $\chi^2$ = {:.2f}, d.o.f. = {}'.format(fit_dict['name'], fit_dict['chi2'], fit_dict['dof'])
-        #    ax.plot(fit_dict['xfit'], fit_dict['yfit'], 
-        #            label = label, ls = fit_dict['ls'])
-        #    if fit_dict['ls'] == '-':
-        #        ax.axhline(0.9, color = 'm', linewidth = 0.3, linestyle = '-.')
-        #        ax.axvline(fit_dict['sens'], color = 'm', linewidth = 0.3, linestyle = '-.')
-        #        ax.text(3.5, 0.8, 'Sens. = {:.2f} events'.format(fit_dict['sens']), fontsize = fontsize)
-        #        ax.text(3.5, 0.7, ' = {:.1e}'.format(inj.mu2flux(sensitivity)*1e9) + r' GeV cm$^-2$', fontsize=fontsize)
-        #ax.errorbar(ns_inj[1:16], passing_frac[1:16], yerr=errs, capsize = 3, linestyle='', marker = 's', markersize = 2)
-        #ax.legend(loc=0, fontsize = fontsize)
-        #ax.set_xlabel('n inj', fontsize = fontsize)
-        #ax.set_ylabel(r'Fraction TS $>$ threshold', fontsize = fontsize)
-
-        #plt.title(f'Passing fraction for point source, dec = {str(dec)}')
-
-        #plt.savefig(f'./plots/passing_frac_dec{str(dec)}.png')
         
         ### Make bias plot ###
         plt.clf()
@@ -217,9 +223,9 @@ if not reload:
         plt.xlabel('n inj')
         plt.ylabel('n fit')
         plt.title(f'Bias for point source at dec= {str(dec)}')
-        plt.savefig(f'./plots/bias_dec{str(dec)}.png')
+        plt.savefig(f'./plots/bias_dec{str(dec)}{suffix}.png')
     
-    with open('./calculated_sensitivities.pickle','wb') as f:
+    with open(f'./calculated_sensitivities{suffix}.pickle','wb') as f:
         pickle.dump({'dec': decs,
                  'sens_ns':sensitivity_ns,
                  'sens_flux':sensitivity_flux}, f)
@@ -230,13 +236,13 @@ else:
     fig,ax = plt.subplots(figsize = (10,6))
     ax.tick_params(labelsize=fontsize)  
 
-    with open('./calculated_sensitivities.pickle','rb') as f:
+    with open(f'./calculated_sensitivities{suffix}.pickle','rb') as f:
         sens=pickle.load(f)
         sensitivity_flux=sens['sens_flux']
         decs=sens['dec']
 
 if args.with_map:
-    sens_trials=[f'./sens_trials/S191216ap/{args.version}_S191216ap_prior_sens_trials_{str(pid)}.pkl' 
+    sens_trials=[f'./sens_trials/{name}/{args.version}_S191216ap_prior_sens_trials_{str(pid)}.pkl' 
                     for pid in range(0,50)]
     passing_frac=[]
     ns_fit_mean=[]
@@ -249,7 +255,8 @@ if args.with_map:
     for i in range(len(sens_trials)):
         with open(sens_trials[i], 'rb') as f:
                 result=pickle.load(f)
-                passing_frac.append(result['passFrac'][0])
+                #passing_frac.append(result['passFrac'][0])
+                passing_frac=calc_passing(result['TS_List'], f'./bg_trials/{name}/')
                 ns_fit_mean.append(np.mean(result['ns_fit']))
                 ns_fit_1sigma.append(np.std(result['ns_fit']))
                 ns_inj.append(np.mean(result['ns_inj']))
@@ -284,9 +291,6 @@ if args.with_map:
     best_dec=np.sin(np.pi/2. - hp.pix2ang(nside, np.where(skymap==max(skymap))[0][0])[0])
     
     make_passing_frac_curve(fits, sensitivity, err, ns_inj[1:20], passing_frac[1:20], dec=None)
-
-    plt.title(f'Passing fraction for S191216ap at 1 TeV'+r' [GeV cm$^{-2}$]')
-    plt.savefig(f'./plots/{args.version}_S191216ap_passing_frac.png')
     
     ### Make bias plot ###
     for j in [0,1]:
@@ -308,8 +312,8 @@ if args.with_map:
         #plt.xlabel('Flux inj')
         #plt.ylabel('Flux fit')
         #plt.title(f'Bias for S191216ap spatial prior at 1 TeV '+r'[GeV cm$^-2$]')
-        if j==0: plt.savefig(f'./plots/{args.version}_S191216ap_bias.png')
-        else: plt.savefig(f'./plots/{args.version}_S191216ap_bias_scatter.png')
+        if j==0: plt.savefig(f'./plots/{args.version}_S191216ap_bias{suffix}.png')
+        else: plt.savefig(f'./plots/{args.version}_S191216ap_bias_scatter{suffix}.png')
     
     #bias plot for gamma
     plt.clf()
@@ -323,7 +327,7 @@ if args.with_map:
     plt.xlabel('n inj')
     plt.ylabel('gamma fit')
     plt.title(f'Spectral index fit bias for S191216ap spatial prior')
-    plt.savefig(f'./plots/{args.version}_S191216ap_gamma_bias.png')
+    plt.savefig(f'./plots/{args.version}_S191216ap_gamma_bias{suffix}.png')
     
 
 plt.clf()
@@ -351,7 +355,7 @@ plt.yscale('log')
 plt.xlim([-1,1])
 plt.legend(loc=0)
 if args.with_map:
-    plt.savefig(f'./plots/{args.version}_sensitivity_flux_w_prior.png')
+    plt.savefig(f'./plots/{args.version}_sensitivity_flux_w_prior{suffix}.png')
 else:
-    plt.savefig(f'./plots/sensitivity_flux_v_dec.png')
+    plt.savefig(f'./plots/sensitivity_flux_v_dec{suffix}.png')
 
