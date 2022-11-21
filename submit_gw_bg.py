@@ -41,7 +41,6 @@ output = f'/scratch/{username}/gw/condor/output'
 log = f'/scratch/{username}/gw/condor/log'
 submit = f'/scratch/{username}/gw/condor/submit'
 
-
 ### Create Dagman to submit jobs to cluster    
 job = pycondor.Job(
     'gw_sensitivity_jobs_prior',
@@ -68,11 +67,19 @@ if args.skymap is None:
     if int(args.tw) !=1000: out_folder = args.output+'point_source_2week/'
     else: out_folder = args.output+'point_source/'
     for dec in decs:
+        if not os.path.exists(args.output+f'ps_map_dec_{dec}.fits'):
+            import healpy as hp
+            ps_map = np.arange(hp.nside2npix(256))
+            ps_map[hp.pixelfunc.ang2pix(256, 0.5 * np.pi - np.deg2rad(dec), np.deg2rad(0))] = 1.
+            hp.fitsfunc.write_map(args.output+f'ps_map_dec_{dec}.fits', ps_map)
         #sens_trials=glob.glob(f'./sens_trials/{out_folder}/ps_sens_{str(dec)}_trials_*.pkl')
         for i in range(100):
         #    if f'./sens_trials/{out_folder}/ps_sens_{str(dec)}_trials_{i}.pkl' in sens_trials:
         #        continue
-            job.add_arg('--dec %s --pid %s --output %s --tw %s'%(dec, i, out_folder, args.tw))
+        #    job.add_arg('--dec %s --pid %s --output %s --tw %s'%(dec, i, out_folder, args.tw))
+            job.add_arg('--skymap %s --pid %i --output %s --name %s --version %s --tw %f'
+                        %(args.output+f'ps_map_dec_{dec}.fits', i, out_folder, 'ps',
+                        args.version, args.tw))
 
 # for spatial prior map
 else: 
@@ -98,14 +105,14 @@ else:
 
     for i in range(50):
         for j in range(10):
-            job.add_arg('--skymap %s --pid %i --output %s --name %s --version %s --time %f --tw %f'
+            job.add_arg('--skymap %s --pid %i --output %s --name %s --version %s --time %f --tw %f --seed %f'
                         %(f'{args.output}{name}/{name}.fits.gz', i, out_folder, name, args.version, 
-                        event_mjd, args.tw))
+                        event_mjd, args.tw, j))
 
 if args.skymap is None:
-    dag_name=f'gw_dagman_bg_ps_{args.version}'
+    dag_name=f'gw_bg_ps_v{args.version[-1]}'
 else: 
-    dag_name=f'gw_dagman_bg_prior_{args.version}'
+    dag_name=f'gw_bg_prior_v{args.version[-1]}'
 
 dagman = pycondor.Dagman(
     dag_name,
