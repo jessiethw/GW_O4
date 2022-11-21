@@ -113,9 +113,9 @@ else:
                         event_mjd, args.tw, j, 200))
 
 if args.skymap is None:
-    dag_name=f'gw_dagman_sens_ps_{args.version}'
+    dag_name=f'gw_sens_ps_v{args.version[-1]}'
 else: 
-    dag_name=f'gw_dagman_sens_prior_{args.version}'
+    dag_name=f'gw_sens_prior_{args.version[-1]}'
 
 dagman = pycondor.Dagman(
     dag_name,
