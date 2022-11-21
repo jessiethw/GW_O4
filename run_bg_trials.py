@@ -29,15 +29,16 @@ p.add_argument("--pid", default=0, type=int,
                 help="Process ID number for jobs running on cluster (Default=0)")
 p.add_argument("--ntrials", default=1000, type=int,
                 help="Number of trials to run per injected flux (Default=1000)")
+#GWFollowup must have a skymap: use a map with all probability in one pixel if point source-like
 p.add_argument("--skymap", default=None, type=str,
                 help="path/url for skymap, if using a skymap")
-p.add_argument("--dec", default=0.0, type=float,
-                help='dec to run trials at, if using point source')
+#p.add_argument("--dec", default=0.0, type=float,
+#                help='dec to run trials at, if using point source')
 p.add_argument("--time", default=57982.52852350, type=float,
                 help="Time of GW merger event (Default=time of GW170817)")
 p.add_argument("--output", default='./',type=str,
                 help="path to save output")
-p.add_argument("--name", default='ps test',type=str,
+p.add_argument("--name", default='ps',type=str,
                 help="name of gw event")
 p.add_argument("--ncpu", default=5, type=int,
                 help='Number of cpus to request')
@@ -66,12 +67,9 @@ stop = stop_time.iso
 name = args.name
 name = name.replace('_', ' ')
 
-if args.skymap is not None:
-    f = GWFollowup(args.name, args.skymap, start, stop, save=False)
-    f._allow_neg = False
-    spatial_prior = SpatialPrior(f.skymap, containment = f._containment, allow_neg=f._allow_neg)
-else:
-    f= PointSourceFollowup(args.name, 0.0, args.dec, start, stop, save=False)
+f = GWFollowup(args.name, args.skymap, start, stop, save=False)
+f._allow_neg = False
+spatial_prior = SpatialPrior(f.skymap, containment = f._containment, allow_neg=f._allow_neg)
 llh=f.llh
 nside=f.nside
 
@@ -87,14 +85,14 @@ gamma_fit=[]
 
 print('starting trials')
 for j in range(start,stop):
-    if args.skymap is not None:
-        val = llh.scan(0.0,0.0, scramble = True, seed = j, spatial_prior=spatial_prior,
-                       time_mask=[time_window,GW_time], pixel_scan=[nside,3.])
-        key='TS_spatial_prior_0'
-    else: 
-        val = llh.scan(0.0, args.dec, scramble = True, seed = j,
-                       time_mask=[time_window,GW_time], pixel_scan=[nside,3.])
-        key='TS'
+    #if args.skymap is not None:
+    val = llh.scan(0.0,0.0, scramble = True, seed = j, spatial_prior=spatial_prior,
+                   time_mask=[time_window,GW_time], pixel_scan=[nside,3.])
+    key='TS_spatial_prior_0'
+    #else: 
+    #    val = llh.scan(0.0, args.dec, scramble = True, seed = j,
+    #                   time_mask=[time_window,GW_time], pixel_scan=[nside,3.])
+    #    key='TS'
     try:
         maxLoc = np.argmax(val[key])  #pick out max of all likelihood ratios at diff pixels
     except ValueError:
@@ -112,12 +110,12 @@ results={
     'gamma_fit':gamma_fit
 }
 print('saving everything')
-if int(args.tw) !=1000.: suffix='_2week'
-else: suffix=''
+if int(args.tw) !=1000.: suffix=f'_2week_{args.seed}'
+else: suffix=f'_{args.seed}'
 
 if args.name is not None:
-    with open(args.output+f'/{args.version}_{args.name}_prior_bg_trials_{args.pid}{suffix}.pkl', 'wb') as f:
+    with open(args.output+f'/{args.version}_{args.name}_bg_trials_{args.pid}{suffix}.pkl', 'wb') as f:
         pickle.dump(results, f)
 else: 
-    with open(args.output+f'/{args.version}_prior_bg_trials_{args.pid}{suffix}.pkl', 'wb') as f:
+    with open(args.output+f'/{args.version}_bg_trials_{args.pid}{suffix}.pkl', 'wb') as f:
         pickle.dump(results, f)
