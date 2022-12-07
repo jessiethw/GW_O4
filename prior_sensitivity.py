@@ -133,22 +133,22 @@ for j in range(start,stop):
     else: 
         ns_inj.append(0)
 
-    if val['TS_spatial_prior_0'].max() > 0.:
-        ndisc+=1
+    #if val['TS_spatial_prior_0'].max() > 0.:
+    #    ndisc+=1
     
     ns_fit.append(val['nsignal'][maxLoc])
     gamma_fit.append(val['gamma'][maxLoc])
     flux_fit.append(inj.mu2flux(val['nsignal'][maxLoc]))
 
 print('done with trials')
-P = float(ndisc)/ntrials
-if P==0.:
-    P=0.0001
-if P==1.:
-    P=0.9999
+#P = float(ndisc)/ntrials
+#if P==0.:
+#    P=0.0001
+#if P==1.:
+#    P=0.9999
 
 results={
-    'passFrac':[P], #ignore this passing fraction! will be recalculated vs bg trials
+    #'passFrac':[P], #ignore this passing fraction! will be recalculated vs bg trials
     'TS_List':TS_list,
     'ns_fit':ns_fit,
     'ns_inj':ns_inj,
