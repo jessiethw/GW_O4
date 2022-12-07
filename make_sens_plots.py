@@ -47,19 +47,32 @@ if int(args.tw) != 1000:
     name=name+suffix
 else: suffix=''
 
-def calc_passing(TS_list, bg_trials_path):
-    bg_TS = []
-    for file in glob.glob(bg_trials_path+'/*'):
+def calc_passing(TS_list, bg_trials_path, dec=None, dp=False):
+    '''Function to calculate passing fractions for sensitivity
+    and discovery potentials. 
+    dp: set to true for discovery potential
+    Returns a passing fraction for sensitivity or discovery potential'''
+    bg_TS = np.array([])
+    if dec is not None: 
+        saved_pkls=glob.glob(bg_trials_path+f'/*{dec}*.pkl')
+    else: 
+        saved_pkls=glob.glob(bg_trials_path+'/*.pkl')
+    for file in saved_pkls:
         with open(file, 'rb') as f:
-            bg = pickle.load(file)
-            np.concatenate(bg_TS, bg['TS_List'])
+            bg = pickle.load(f)
+            bg_TS=np.concatenate((bg_TS, bg['TS_List']))
     
-    med_bg_TS = np.median(bg_TS)
+    bg_TS[bg_TS<0.]=0.
+    if dp:
+        ts = np.percentile(bg_TS, 100-0.13)
+    else:
+        ts = np.median(bg_TS)
+    
     npass = 0
-    for TS in TS_list:
-        if TS > med_bg_TS:
+    for TS_i in TS_list:
+        if TS_i > ts:
             npass+=1
-
+    
     return npass/len(TS_list)
 
 def calc_sensitivty(passing_frac, flux_inj, flux=True):
@@ -186,18 +199,21 @@ if not reload:
         ns_fit_mean=[]
         ns_fit_1sigma=[]
         ns_inj=[]
+        dp_pf=[]
         for i in range(len(sens_trials)):
             with open(sens_trials[i], 'rb') as f:
                 result=pickle.load(f)
                 #passing_frac.append(result['passFrac'][0])
-                passing_frac=calc_passing(result['TS_List'], f'./bg_trials/{name}/')
+                passing_frac.append(calc_passing(result['TS_List'], f'./bg_trials/{name}/', dec=dec))
+                dp_pf.append(calc_passing(result['TS_List'], f'./bg_trials/{name}/', dec=dec, dp=True))
                 ns_fit_mean.append(np.mean(result['ns_fit']))
                 ns_fit_1sigma.append(np.std(result['ns_fit']))
                 ns_inj.append(result['ns_inj'])
 
         #### Calculate sensitivity #####
         sensitivity, fits, errs = calc_sensitivty(passing_frac[1:16], ns_inj[1:16])
-        
+        dp, fits_dp, errs_dp = calc_sensitivty(dp_pf[1:21], ns_inj[1:21])
+
         llh = config([f'GFUOnline_{args.version}','IC86, 2011-2018'],gamma=2.,ncpu=2, days=5,
               time_mask=[500./3600./24.,57982.52852350], poisson=True)
 
@@ -209,7 +225,34 @@ if not reload:
         sensitivity_flux.append(inj.mu2flux(sensitivity)*1e9)
 
         #### Making passing fract curve #####
-        make_passing_frac_curve(fits, sensitivity, errs, ns_inj[1:16], passing_frac[1:16], dec=dec)
+        mpl.rcParams.update({'font.size':fontsize})
+        fig,ax = plt.subplots(figsize = (10,6))
+        ax.tick_params(labelsize=fontsize)    
+        
+        for fit_dict in fits:
+            label=r'{}: $\chi^2$ = {:.2f}, d.o.f. = {}'.format(fit_dict['name'], fit_dict['chi2'], fit_dict['dof'])
+            ax.plot(fit_dict['xfit'], fit_dict['yfit'], 
+                label = label, ls = fit_dict['ls'])
+            if fit_dict['ls'] == '-':
+                ax.axhline(0.9, color = 'm', linewidth = 0.3, linestyle = '-.')
+                ax.axvline(fit_dict['sens'], color = 'm', linewidth = 0.3, linestyle = '-.')
+        ax.errorbar(ns_inj[1:16], passing_frac[1:16], yerr=errs, capsize = 3, linestyle='', marker = 's', markersize = 2)
+
+        for fit_dict in fits_dp:
+            label=r'{}: $\chi^2$ = {:.2f}, d.o.f. = {}'.format(fit_dict['name'], fit_dict['chi2'], fit_dict['dof'])
+            ax.plot(fit_dict['xfit'], fit_dict['yfit'], 
+                label = label, ls = fit_dict['ls'])
+            if fit_dict['ls'] == '-':
+                ax.axhline(0.9, color = 'm', linewidth = 0.3, linestyle = '-.')
+                ax.axvline(fit_dict['sens'], color = 'm', linewidth = 0.3, linestyle = '-.')
+        ax.errorbar(ns_inj[1:21], dp_pf[1:21], yerr=errs_dp, capsize = 3, linestyle='', marker = 's', markersize = 2)
+        
+        ax.legend(loc=0, fontsize = fontsize)
+        ax.set_xlabel('n inj', fontsize = fontsize)
+        ax.set_ylabel(r'Fraction TS $>$ threshold', fontsize = fontsize)
+
+        plt.title(f'Passing fraction for point source, dec = {str(dec)}')
+        plt.savefig(f'./plots/passing_frac_dec{str(dec)}{suffix}.png')
         
         ### Make bias plot ###
         plt.clf()
