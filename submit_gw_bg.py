@@ -64,22 +64,29 @@ if args.skymap is None:
     decs= np.linspace(-85,85,35)
     #decs=[-67.5, -45., -22.5, 0., 22.5, 45., 67.5]
 
-    if int(args.tw) !=1000: out_folder = args.output+'point_source_2week/'
-    else: out_folder = args.output+'point_source/'
     for dec in decs:
-        if not os.path.exists(args.output+f'ps_map_dec_{dec}.fits'):
-            import healpy as hp
-            ps_map = np.arange(hp.nside2npix(256))
-            ps_map[hp.pixelfunc.ang2pix(256, 0.5 * np.pi - np.deg2rad(dec), np.deg2rad(0))] = 1.
-            hp.fitsfunc.write_map(args.output+f'ps_map_dec_{dec}.fits', ps_map)
-        #sens_trials=glob.glob(f'./sens_trials/{out_folder}/ps_sens_{str(dec)}_trials_*.pkl')
-        for i in range(100):
-        #    if f'./sens_trials/{out_folder}/ps_sens_{str(dec)}_trials_{i}.pkl' in sens_trials:
-        #        continue
-        #    job.add_arg('--dec %s --pid %s --output %s --tw %s'%(dec, i, out_folder, args.tw))
-            job.add_arg('--skymap %s --pid %i --output %s --name %s --version %s --tw %f'
-                        %(args.output+f'ps_map_dec_{dec}.fits', i, out_folder, 'ps',
-                        args.version, args.tw))
+        #if not os.path.exists(args.output+f'ps_map_dec_{dec}.fits'):
+        #    import healpy as hp
+        #    ps_map = np.full_like([0]*hp.nside2npix(256), 1e-20, dtype=np.float32)
+        #    ps_map[hp.pixelfunc.ang2pix(256, 0.5 * np.pi - np.deg2rad(dec), np.deg2rad(0), nest=True)] = 0.999999
+        #    hp.fitsfunc.write_map(args.output+f'ps_map_dec_{dec}_nested.fits', ps_map, overwrite=True, nest=True)
+
+        if int(args.tw) !=1000: 
+            out_folder = args.output+'point_source_2week/'
+            #for i in range(100):
+            #    if os.path.exists(out_folder+f'/v001p02_bg_trials_dec_{dec}_{i}_2week.pkl'):
+            #        continue
+            #    job.add_arg('--skymap %s --output %s --name %s --tw %f --dec %f --pid %i --ntrials 100'
+            #        %(args.output+f'ps_map_dec_{dec}_nested.fits', out_folder, 'ps',
+            #          args.tw, dec, i))
+        else: 
+            out_folder = args.output+'point_source/'
+            #job.add_arg('--skymap %s --output %s --name %s --tw %f --dec %f'
+            #        %(args.output+f'ps_map_dec_{dec}_nested.fits', out_folder, 'ps',
+            #          args.tw, dec))
+        for i in range(10):
+            job.add_arg('--output %s --name %s --tw %f --dec %f --pid %i'
+                    %(out_folder, 'ps', args.tw, dec, i+1))
 
 # for spatial prior map
 else: 
@@ -100,14 +107,18 @@ else:
         os.mkdir(args.output+name)
     skymap_path=wget.download(skymap, out=f'{args.output}{name}/{name}.fits.gz')
 
-    if int(args.tw) !=1000: out_folder = args.output+f'{name}_2week/'
-    else: out_folder = f'{args.output}{name}/'
-
-    for i in range(50):
-        for j in range(10):
-            job.add_arg('--skymap %s --pid %i --output %s --name %s --version %s --time %f --tw %f --seed %f'
-                        %(f'{args.output}{name}/{name}.fits.gz', i, out_folder, name, args.version, 
+    if int(args.tw) !=1000: 
+        out_folder = args.output+f'{name}_2week/'
+        for i in range(1, 31):
+            for j in range(10):
+                job.add_arg('--skymap %s --pid %i --output %s --name %s --time %f --tw %f --seed %i --ntrials 100'
+                        %(f'{args.output}{name}/{name}.fits.gz', i, out_folder, name, 
                         event_mjd, args.tw, j))
+    else: 
+        out_folder = f'{args.output}{name}/'
+        job.add_arg('--skymap %s --output %s --name %s --time %f --tw %f'
+                    %(f'{args.output}{name}/{name}.fits.gz', out_folder, name, 
+                    event_mjd, args.tw))
 
 if args.skymap is None:
     dag_name=f'gw_bg_ps_v{args.version[-1]}'
