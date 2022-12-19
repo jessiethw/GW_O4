@@ -35,7 +35,7 @@ p.add_argument("--version", default='v001p02', type=str,
                 help='version of GFUOnline to use (default= v001p02)')
 p.add_argument("--nside", default=256, type=int,
 		        help='nside to use for map if using spatial prior')
-p.add_argument('--tw', default=1000., type=float, 
+p.add_argument('--tw', default=1000., type=float,  #[-1, +14]day: 1382400
                 help='time window to use (default =1000.)')
 args = p.parse_args()
 
@@ -52,6 +52,11 @@ def calc_passing(TS_list, bg_trials_path, dec=None, dp=False):
     and discovery potentials. 
     dp: set to true for discovery potential
     Returns a passing fraction for sensitivity or discovery potential'''
+    try:
+        sens_ts=[t[0] for t in TS_list]
+    except:
+        sens_ts=TS_list
+    
     bg_TS = np.array([])
     if dec is not None: 
         saved_pkls=glob.glob(bg_trials_path+f'/*{dec}*.pkl')
@@ -60,20 +65,31 @@ def calc_passing(TS_list, bg_trials_path, dec=None, dp=False):
     for file in saved_pkls:
         with open(file, 'rb') as f:
             bg = pickle.load(f)
-            bg_TS=np.concatenate((bg_TS, bg['TS_List']))
+            try: 
+                bg_TS = np.concatenate((bg_TS, bg['TS_List']))
+            except:
+                ts = [t[0] for t in bg['TS_List']] #sometimes saves as a list of lists
+                bg_TS = np.concatenate((bg_TS, ts))
     
     bg_TS[bg_TS<0.]=0.
+    
     if dp:
         ts = np.percentile(bg_TS, 100-0.13)
     else:
         ts = np.median(bg_TS)
     
     npass = 0
-    for TS_i in TS_list:
+    for TS_i in sens_ts:
         if TS_i > ts:
             npass+=1
-    
-    return npass/len(TS_list)
+    P = float(npass)/len(sens_ts)
+
+    if P==0.:
+        P=0.0001
+    if P==1.:
+        P=0.9999
+
+    return P
 
 def calc_sensitivty(passing_frac, flux_inj, flux=True):
     passing = np.array(passing_frac, dtype=float)
@@ -187,21 +203,24 @@ if args.with_map:
 fontsize=args.fontsize
 sensitivity_flux=[]
 sensitivity_ns=[]
+dp_flux=[]
+dp_ns=[]
 #decs=[-67.5, -45., -22.5, 0., 22.5, 45., 67.5]
 decs= np.linspace(-85,85,35)
 
 if not reload:
     for dec in decs:
-        sens_trials=[f'./sens_trials/{name}/ps_sens_{str(dec)}_trials_{str(pid)}.pkl' 
+        sens_trials=[f'./sens_trials/{name}/ps_sens_{str(dec)}_trials_{str(pid)}{suffix}.pkl' 
                     for pid in range(0,200)]
+        #sens_trials=sorted(glob.glob(f'./sens_trials/{name}/ps_sens_{str(dec)}_trials_*.pkl'))
 
         passing_frac=[]
         ns_fit_mean=[]
         ns_fit_1sigma=[]
         ns_inj=[]
         dp_pf=[]
-        for i in range(len(sens_trials)):
-            with open(sens_trials[i], 'rb') as f:
+        for saved_trial in sens_trials:
+            with open(saved_trial, 'rb') as f:
                 result=pickle.load(f)
                 #passing_frac.append(result['passFrac'][0])
                 passing_frac.append(calc_passing(result['TS_List'], f'./bg_trials/{name}/', dec=dec))
@@ -220,9 +239,12 @@ if not reload:
         inj = PointSourceInjector(E0=1000.)
         inj.fill(np.deg2rad(dec),llh.exp,llh.mc,llh.livetime,
                 temporal_model=llh.temporal_model)
+
         sensitivity_ns.append(sensitivity)
+        dp_ns.append(dp)
         #flux at E0=1 TeV, convert to [GeV cm^-2 s]
         sensitivity_flux.append(inj.mu2flux(sensitivity)*1e9)
+        dp_flux.append(inj.mu2flux(dp)*1e9)
 
         #### Making passing fract curve #####
         mpl.rcParams.update({'font.size':fontsize})
@@ -237,7 +259,7 @@ if not reload:
                 ax.axhline(0.9, color = 'm', linewidth = 0.3, linestyle = '-.')
                 ax.axvline(fit_dict['sens'], color = 'm', linewidth = 0.3, linestyle = '-.')
         ax.errorbar(ns_inj[1:16], passing_frac[1:16], yerr=errs, capsize = 3, linestyle='', marker = 's', markersize = 2)
-
+        
         for fit_dict in fits_dp:
             label=r'{}: $\chi^2$ = {:.2f}, d.o.f. = {}'.format(fit_dict['name'], fit_dict['chi2'], fit_dict['dof'])
             ax.plot(fit_dict['xfit'], fit_dict['yfit'], 
@@ -271,7 +293,9 @@ if not reload:
     with open(f'./calculated_sensitivities{suffix}.pickle','wb') as f:
         pickle.dump({'dec': decs,
                  'sens_ns':sensitivity_ns,
-                 'sens_flux':sensitivity_flux}, f)
+                 'sens_flux':sensitivity_flux,
+                 'dp_flux':dp_flux,
+                 'dp_ns':dp_ns}, f)
 else: 
     print('Reloading calculated sensitivities')
 
@@ -282,10 +306,11 @@ else:
     with open(f'./calculated_sensitivities{suffix}.pickle','rb') as f:
         sens=pickle.load(f)
         sensitivity_flux=sens['sens_flux']
+        dp_flux=sens['dp_flux']
         decs=sens['dec']
 
 if args.with_map:
-    sens_trials=[f'./sens_trials/{name}/{args.version}_S191216ap_prior_sens_trials_{str(pid)}.pkl' 
+    sens_trials=[f'./sens_trials/{name}/{args.version}_S191216ap_prior_sens_trials_{str(pid)}{suffix}.pkl' 
                     for pid in range(0,50)]
     passing_frac=[]
     ns_fit_mean=[]
@@ -381,15 +406,17 @@ o3_sens = [1.15, 1.06, .997, .917, .867, .802, .745, .662,
             .0679, .0732, .0788, .083, .0866]
 o3_sens = np.array(o3_sens)
 
-plt.plot(np.sin(np.deg2rad(decs)), sensitivity_flux, label='O4 (this work)')
+plt.plot(np.sin(np.deg2rad(decs)), sensitivity_flux, label='O4 sensitivity')
+plt.plot(np.sin(np.deg2rad(decs)), dp_flux, label=r'O4 3$\sigma$ 90\% DP')
+
 if args.with_map:
     llh, inj = config([f'GFUOnline_{args.version}','IC86, 2011-2018'],gamma=2.,ncpu=2, days=5,
             spatial_prior = spatial_prior, time_mask=[500./3600./24.,57982.52852350], poisson=True)
     
     dec_errs=[[best_dec-min_dec], [max_dec-best_dec]]
     plt.errorbar(best_dec, inj.mu2flux(sensitivity)*1e9, xerr=dec_errs, marker = 'o', label='S191216ap (GW skymap best-fit)')
-else:
-    plt.plot(np.sin(np.deg2rad(decs)), o3_sens, label='O3 (realtime)')
+#else:
+#    plt.plot(np.sin(np.deg2rad(decs)), o3_sens, label='O3 (realtime)')
 
 plt.xlabel('sin(declination)')
 plt.ylabel(r'Sensitivity flux E$^2$ dN/dE at 1 TeV [GeV cm$^-2$]')
